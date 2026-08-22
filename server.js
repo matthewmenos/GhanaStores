@@ -12,12 +12,13 @@ import payoutRoutes from './routes/payoutRoutes.js';
 import whatsappInvoiceRoutes from './routes/whatsappInvoiceRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
 import domainRoutes, { resolveStoreFromHost } from './routes/domainRoutes.js';
-import './jobs/billingCron.js'; // registers the daily cron schedule on boot
+import { runDailyBillingSweep } from './jobs/billingCron.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const IS_VERCEL = process.env.VERCEL === '1';
 
 // ---- Core middleware ----
 app.use(helmet());
@@ -35,6 +36,32 @@ app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 
 // ---- Health check ----
 app.get('/healthz', (req, res) => res.json({ ok: true, app: 'Ghana Stores API' }));
+
+/**
+ * GET /api/cron/billing
+ * Invoked once a day by Vercel Cron (see vercel.json). Vercel serverless
+ * functions are ephemeral — there's no long-running process to self-
+ * schedule against — so the platform's own cron scheduler is what
+ * triggers this instead of node-cron.
+ *
+ * When CRON_SECRET is set, Vercel signs scheduled invocations with
+ * `Authorization: Bearer <CRON_SECRET>`; we verify that so this endpoint
+ * can't be hit by anyone who finds the URL.
+ */
+app.get('/api/cron/billing', async (req, res, next) => {
+  try {
+    if (process.env.CRON_SECRET) {
+      const authHeader = req.headers.authorization || '';
+      if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ error: 'Unauthorized.' });
+      }
+    }
+    const summary = await runDailyBillingSweep();
+    res.json({ ok: true, ...summary });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ---- Modular route mounts ----
 app.use('/api/analytics', analyticsRoutes);
@@ -57,8 +84,13 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Ghana Stores API listening on port ${PORT}`);
-});
+// Only bind a listening port for local dev / traditional hosting.
+// On Vercel, api/index.js imports `app` and Vercel's Node runtime calls
+// it directly as a request handler for every /api/* invocation.
+if (!IS_VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Ghana Stores API listening on port ${PORT}`);
+  });
+}
 
 export default app;

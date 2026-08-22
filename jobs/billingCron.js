@@ -1,11 +1,9 @@
-import cron from 'node-cron';
 import dotenv from 'dotenv';
 import { pool } from '../config/database.js';
 import { sendSms, templates } from '../services/smsService.js';
 
 dotenv.config();
 
-const TRIAL_LENGTH_DAYS = Number(process.env.TRIAL_LENGTH_DAYS || 14);
 const GRACE_PERIOD_DAYS = Number(process.env.GRACE_PERIOD_DAYS || 3);
 
 /**
@@ -32,7 +30,7 @@ async function sendTrialReminders() {
     );
   }
 
-  console.log(`[billingCron] Sent ${rows.length} trial reminder(s).`);
+  return rows.length;
 }
 
 /**
@@ -61,7 +59,7 @@ async function moveExpiredTrialsToPastDue() {
     );
   }
 
-  console.log(`[billingCron] Moved ${rows.length} store(s) to PAST_DUE.`);
+  return rows.length;
 }
 
 /**
@@ -89,27 +87,36 @@ async function suspendOverdueStores() {
     );
   }
 
-  console.log(`[billingCron] Suspended ${rows.length} overdue store(s).`);
+  return rows.length;
 }
 
-async function runDailyBillingSweep() {
-  console.log(`[billingCron] Running daily sweep at ${new Date().toISOString()}`);
-  try {
-    await sendTrialReminders();
-    await moveExpiredTrialsToPastDue();
-    await suspendOverdueStores();
-  } catch (err) {
-    console.error('[billingCron] Sweep failed:', err);
-  }
+/**
+ * Runs the full daily billing sweep. This is the function Vercel Cron
+ * calls (via GET /api/cron/billing, see server.js) once a day —
+ * Vercel serverless functions are ephemeral, so there is no persistent
+ * process here scheduling itself; the platform's cron is the scheduler.
+ */
+export async function runDailyBillingSweep() {
+  const startedAt = new Date().toISOString();
+  const remindersSent = await sendTrialReminders();
+  const movedToPastDue = await moveExpiredTrialsToPastDue();
+  const suspended = await suspendOverdueStores();
+
+  const summary = { startedAt, remindersSent, movedToPastDue, suspended };
+  console.log('[billingCron] Daily sweep complete:', summary);
+  return summary;
 }
 
-// Runs once a day at 07:00 Africa/Accra — early enough that merchants see
-// the SMS before their business day starts.
-cron.schedule('0 7 * * *', runDailyBillingSweep, { timezone: 'Africa/Accra' });
-
-// Allow `node jobs/billingCron.js --now` for manual/on-demand runs (e.g. in CI or a one-off ops fix)
+// Manual/local run: `node jobs/billingCron.js --now`
+// (In production this file is never imported directly — server.js exposes
+// it through the /api/cron/billing route that Vercel Cron invokes on schedule.)
 if (process.argv.includes('--now')) {
-  runDailyBillingSweep().then(() => process.exit(0));
+  runDailyBillingSweep()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('[billingCron] Sweep failed:', err);
+      process.exit(1);
+    });
 }
 
 export default runDailyBillingSweep;

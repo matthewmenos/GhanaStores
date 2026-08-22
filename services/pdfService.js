@@ -19,7 +19,7 @@ const BRAND = {
  */
 export async function generateReceiptPdf(order) {
   const qrDataUrl = await QRCode.toDataURL(
-    `https://verify.ghanastores.com/receipts/${order.id}`,
+    `https://${process.env.APP_BASE_DOMAIN || 'ghanastores.com'}/receipts/${order.id}`,
     { margin: 1, color: { dark: BRAND.slateDark, light: '#FFFFFF' } }
   );
 
