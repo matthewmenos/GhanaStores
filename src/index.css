@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-brand: #2563EB;
+  --color-slate-950: #0F172A;
+  --color-slate-50: #F8FAFC;
+  --color-success: #059669;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-storefront-accent: #EA580C;
+  --color-storefront-charcoal: #18181B;
+}
+
+body {
+  @apply bg-slate-50 text-slate-950 antialiased;
+  font-feature-settings: 'ss01' on, 'ss02' on;
+}
+
+/* Utility for numeric/currency displays — tabular figures keep GHS amounts aligned in tables */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
