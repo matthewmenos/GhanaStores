@@ -111,3 +111,233 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@vercel/postgres' imported fr
 
 Node.js v24.14.1
 [31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@vercel/postgres' imported from C:\Users\DELL\Desktop\GhanaStores\config\database.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+    at #resolve (node:internal/modules/esm/loader:701:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.14.1
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@vercel/postgres' imported from C:\Users\DELL\Desktop\GhanaStores\config\database.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+    at #resolve (node:internal/modules/esm/loader:701:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.14.1
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@vercel/postgres' imported from C:\Users\DELL\Desktop\GhanaStores\config\database.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+    at #resolve (node:internal/modules/esm/loader:701:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.14.1
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@vercel/postgres' imported from C:\Users\DELL\Desktop\GhanaStores\config\database.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+    at #resolve (node:internal/modules/esm/loader:701:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.14.1
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+node:internal/modules/esm/resolve:275
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\DELL\Desktop\GhanaStores\config\database.js' imported from C:\Users\DELL\Desktop\GhanaStores\routes\analyticsRoutes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+    at #resolve (node:internal/modules/esm/loader:701:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:245:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/DELL/Desktop/GhanaStores/config/database.js'
+}
+
+Node.js v24.14.1
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+node:internal/modules/esm/resolve:275
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\DELL\Desktop\GhanaStores\config\database.js' imported from C:\Users\DELL\Desktop\GhanaStores\routes\analyticsRoutes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+    at #resolve (node:internal/modules/esm/loader:701:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:245:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/DELL/Desktop/GhanaStores/config/database.js'
+}
+
+Node.js v24.14.1
+[32m[nodemon] starting `node server.js`[39m
+node:internal/modules/esm/resolve:275
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\DELL\Desktop\GhanaStores\config\database.js' imported from C:\Users\DELL\Desktop\GhanaStores\routes\analyticsRoutes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+    at #resolve (node:internal/modules/esm/loader:701:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:245:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/DELL/Desktop/GhanaStores/config/database.js'
+}
+
+Node.js v24.14.1
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+node:internal/modules/cjs/loader:1459
+  throw err;
+  ^
+
+Error: Cannot find module 'C:\Users\DELL\Desktop\GhanaStores\server.js'
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+    at Module._load (node:internal/modules/cjs/loader:1242:25)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v24.14.1
+[32m[nodemon] starting `node server.js`[39m
+node:internal/modules/cjs/loader:1459
+  throw err;
+  ^
+
+Error: Cannot find module 'C:\Users\DELL\Desktop\GhanaStores\server.js'
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+    at Module._load (node:internal/modules/cjs/loader:1242:25)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v24.14.1
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+node:internal/modules/cjs/loader:1459
+  throw err;
+  ^
+
+Error: Cannot find module 'C:\Users\DELL\Desktop\GhanaStores\server.js'
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+    at Module._load (node:internal/modules/cjs/loader:1242:25)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v24.14.1
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
