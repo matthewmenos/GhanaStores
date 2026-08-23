@@ -13,7 +13,7 @@ import {
   normalizeGhPhone, generateOrderNumber, pointsForSpend,
   redeemValue, toIntOr, money,
 } from '../utils/helpers.js';
-import { collectLowStockCandidate, persistAlertFlag } from './inventoryRoutes.js';
+import { collectLowStockCandidate, persistAlertFlag, recordLowStockAlerts } from './inventoryRoutes.js';
 
 const router = Router();
 
@@ -269,6 +269,7 @@ async function finishPosSale(req, res, client, ctx) {
     if (alertCandidates.length > 0) {
       const storeRes = await query('SELECT name, phone FROM stores WHERE id = $1', [req.auth.sub]);
       sendLowStockAlertSms(storeRes.rows[0], alertCandidates).catch(() => {});
+      recordLowStockAlerts(req.auth.sub, alertCandidates).catch(() => {});
     }
 
     return res.status(201).json({

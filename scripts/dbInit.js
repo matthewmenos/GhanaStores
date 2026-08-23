@@ -11,7 +11,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const schemaPath = path.join(__dirname, '..', 'db', 'schema.sql');
+// Schema + supplemental modules, applied in dependency order.
+const schemaFiles = ['schema.sql', 'variants_and_alerts.sql'].map((f) =>
+  path.join(__dirname, '..', 'db', f));
 
 const connectionString = process.env.DATABASE_URL || '';
 const useSsl = /\.neon\.tech/i.test(connectionString) ||
@@ -33,32 +35,33 @@ async function main() {
     ssl: useSsl ? { rejectUnauthorized: false } : undefined,
   });
 
-  const sql = fs.readFileSync(schemaPath, 'utf8');
-  console.log(`Applying ${schemaPath} ...`);
-  try {
-    await pool.query(sql);
-    console.log('Schema applied successfully.');
-  } catch (err) {
-    // Neon pooled connections sometimes reject multi-statement payloads;
-    // fall back to statement-by-statement execution.
-    console.warn(`Bulk apply failed (${err.message.split('\n')[0]}). Retrying statement-by-statement...`);
-    const statements = sql
-      .split(/;\s*$/m)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith('--'));
-    let applied = 0;
-    for (const stmt of statements) {
-      try {
-        await pool.query(stmt.endsWith(';') ? stmt : `${stmt};`);
-        applied += 1;
-      } catch (e) {
-        console.warn(`  skipped: ${e.message.split('\n')[0]}`);
+  for (const schemaPath of schemaFiles) {
+    const sql = fs.readFileSync(schemaPath, 'utf8');
+    console.log(`Applying ${schemaPath} ...`);
+    try {
+      await pool.query(sql);
+      console.log('Schema applied successfully.');
+    } catch (err) {
+      // Neon pooled connections sometimes reject multi-statement payloads;
+      // fall back to statement-by-statement execution.
+      console.warn(`Bulk apply failed (${err.message.split('\n')[0]}). Retrying statement-by-statement...`);
+      const statements = sql
+        .split(/;\s*$/m)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0 && !s.startsWith('--'));
+      let applied = 0;
+      for (const stmt of statements) {
+        try {
+          await pool.query(stmt.endsWith(';') ? stmt : `${stmt};`);
+          applied += 1;
+        } catch (e) {
+          console.warn(`  skipped: ${e.message.split('\n')[0]}`);
+        }
       }
+      console.log(`Applied ${applied}/${statements.length} statements.`);
     }
-    console.log(`Applied ${applied}/${statements.length} statements.`);
-  } finally {
-    await pool.end();
   }
+  await pool.end();
 }
 
 main().catch((err) => {

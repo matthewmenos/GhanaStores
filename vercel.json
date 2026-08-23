@@ -23,8 +23,8 @@
   ],
   "crons": [
     {
-      "path": "/api/billing/cron",
-      "schedule": "0 8 * * *"
+      "path": "/api/cron/billing",
+      "schedule": "0 0 * * *"
     }
   ],
   "headers": [

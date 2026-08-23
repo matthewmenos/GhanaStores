@@ -9,7 +9,7 @@ import { query, withTransaction } from '../config/database.js';
 import { issueStoreToken, requireSeller } from '../middleware/authMiddleware.js';
 import { sendWelcomeSms } from '../services/smsService.js';
 import { normalizeGhPhone, slugifyStoreName } from '../utils/helpers.js';
-import { runRenewalReminders, runExpireTrials, runSuspendOverdue } from '../jobs/billingCron.js';
+import { billingCronHandler } from './billingCronRoute.js';
 
 const router = Router();
 
@@ -34,34 +34,9 @@ async function uniqueSlug(base) {
 }
 
 /* ------------------------ Scheduled billing cycle (cron) -------------------- */
-// Invoked daily at 08:00 Africa/Accra (GMT) by Vercel Cron Jobs, defined in
-// vercel.json -> crons[]. Vercel attaches `Authorization: Bearer $CRON_SECRET`
-// automatically when that environment variable exists in the project.
-// Manual trigger: curl -H "Authorization: Bearer $CRON_SECRET" .../api/billing/cron
-router.get('/cron', async (req, res, next) => {
-  try {
-    const secret = process.env.CRON_SECRET;
-    if (secret) {
-      const provided = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-      if (provided !== secret) {
-        return res.status(401).json({ error: 'Unauthorized cron invocation.' });
-      }
-    } else {
-      console.warn('[cron] CRON_SECRET is not set - /api/billing/cron is unauthenticated. Set it before going live.');
-    }
-
-    const reminders = await runRenewalReminders();
-    const pastDue = await runExpireTrials();
-    const suspended = await runSuspendOverdue();
-    res.json({
-      ok: true,
-      ranAt: new Date().toISOString(),
-      result: { renewalRemindersSent: reminders, trialsMovedToPastDue: pastDue, storesSuspended: suspended },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+// Legacy alias; the canonical endpoint is GET /api/cron/billing (see
+// billingCronRoute.js). Vercel Cron calls /api/cron/billing directly.
+router.get('/cron', billingCronHandler);
 
 /* --------------------------------- Register -------------------------------- */
 router.post('/register', async (req, res, next) => {

@@ -25,14 +25,15 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import { pingDb } from './config/database.js';
-import { resolveStoreFromHost } from './routes/domainRoutes.js';
+import { resolveTenantStore } from './middleware/domainMiddleware.js';
 import billingRoutes from './routes/billingRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import posRoutes from './routes/posRoutes.js';
 import payoutRoutes from './routes/payoutRoutes.js';
-import whatsappInvoiceRoutes from './routes/whatsappInvoiceRoutes.js';
+import whatsappInvoiceRoutes, { whatsappRouter } from './routes/whatsappInvoiceRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
 import domainRoutes from './routes/domainRoutes.js';
+import billingCronRoute from './routes/billingCronRoute.js';
 import { startBillingCron } from './jobs/billingCron.js';
 
 dotenv.config();
@@ -52,9 +53,10 @@ app.use(cors({
 }));
 
 /* ------------------- Tenant resolution must run FIRST ----------------------- */
-// Maps custom domains / subdomains to req.storeFromHost for public storefront
-// traffic; platform requests pass through untouched.
-app.use(resolveStoreFromHost);
+// Maps custom domains / subdomains to req.tenantStore (legacy alias
+// req.storeFromHost) for public storefront traffic; platform requests pass
+// through untouched.
+app.use(resolveTenantStore);
 
 /* --------------------------------- API mounts ------------------------------- */
 app.get('/health', async (_req, res) => {
@@ -76,8 +78,10 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/pos', posRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/orders', whatsappInvoiceRoutes);
+app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/domains', domainRoutes);
+app.use('/api/cron', billingCronRoute);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'API endpoint not found.' }));
 

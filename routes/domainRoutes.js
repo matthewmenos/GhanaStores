@@ -9,70 +9,25 @@
  *    a certificate should be issued on demand.
  */
 import { Router } from 'express';
+import { promises as dns } from 'node:dns';
 import { query } from '../config/database.js';
 import { requireSeller } from '../middleware/authMiddleware.js';
+import { resolveTenantStore } from '../middleware/domainMiddleware.js';
 
 const router = Router();
+
+// Backward-compatible re-export: the resolution logic now lives in
+// middleware/domainMiddleware.js (per the module spec).
+export const resolveStoreFromHost = resolveTenantStore;
 
 const PLATFORM_DOMAIN = (process.env.PLATFORM_DOMAIN || 'ghastores.com').replace(/^https?:\/\//, '');
 const ROOT_DOMAIN = (process.env.ROOT_DOMAIN || 'localhost:5173').split(':')[0];
 const CNAME_TARGET = process.env.CNAME_TARGET || 'cname.ghastores.com';
+// Vercel's canonical custom-domain DNS targets.
+const VERCEL_CNAME = 'cname.vercel-dns.com';
+const VERCEL_APEX_IPS = new Set(['76.76.21.21', '76.76.21.22', '76.76.21.61', '76.76.21.98', '76.76.21.241', '76.76.21.242']);
 
 const DOMAIN_RE = /^(\*\.)?([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
-
-/* ------------------------- Tenant resolution middleware ---------------------- */
-export async function resolveStoreFromHost(req, _res, next) {
-  try {
-    req.storeFromHost = null;
-    req.tenantInfo = { mode: 'platform', host: req.headers.host || '' };
-
-    const rawHost = String(req.headers.host || '').toLowerCase().trim();
-    const host = rawHost.split(':')[0];
-    if (!host) return next();
-
-    // Platform origins: localhost, LAN IPs, apex platform domain, www.
-    const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
-    const isLocal = host === 'localhost' || host.endsWith('.localhost');
-    const isPlatform = host === PLATFORM_DOMAIN || host === `www.${PLATFORM_DOMAIN}`;
-    const isRootDev = !process.env.NODE_ENV && (isLocal || isIp);
-    if (isIp || isPlatform || isRootDev) return next();
-
-    // 1) Custom domains take precedence.
-    const custom = await query(
-      `SELECT id, name, subdomain_slug, custom_domain, whatsapp_number, phone,
-              momo_number, status, currency, loyalty_points_per_ghs, loyalty_point_value
-         FROM stores WHERE LOWER(custom_domain) = $1 AND status <> 'SUSPENDED' LIMIT 1`,
-      [host],
-    );
-    if (custom.rows[0]) {
-      req.storeFromHost = custom.rows[0];
-      req.tenantInfo = { mode: 'custom_domain', host };
-      return next();
-    }
-
-    // 2) Wildcard subdomains of the platform root (seller.slug.ghastores.com).
-    if (host !== ROOT_DOMAIN && host.endsWith(`.${PLATFORM_DOMAIN}`)) {
-      const sub = host.slice(0, -1 * (`.${PLATFORM_DOMAIN}`.length)).split('.')[0];
-      if (sub && !['www', 'api', 'admin'].includes(sub)) {
-        const found = await query(
-          `SELECT id, name, subdomain_slug, custom_domain, whatsapp_number, phone,
-                  momo_number, status, currency, loyalty_points_per_ghs, loyalty_point_value
-             FROM stores WHERE subdomain_slug = $1 AND status <> 'SUSPENDED' LIMIT 1`,
-          [sub],
-        );
-        if (found.rows[0]) {
-          req.storeFromHost = found.rows[0];
-          req.tenantInfo = { mode: 'subdomain', host, slug: sub };
-        }
-      }
-    }
-    return next();
-  } catch (err) {
-    // Never let DNS/DB hiccups take down the whole API.
-    console.error('[domains] host resolution failed:', err.message);
-    next();
-  }
-}
 
 /* ------------------------------ Public resolution ---------------------------- */
 // Lets the SPA ask "who owns the domain I am browsing?" (storefront header).
@@ -203,6 +158,70 @@ router.put('/my', requireSeller, async (req, res, next) => {
       message: 'Domain saved. Create the DNS record below; SSL provisions automatically.',
       customDomain: domain,
       dns: { recordType: 'CNAME', name: domain.split('.')[0] === 'www' ? 'www' : '@', target: CNAME_TARGET },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ----------- Verify DNS (CNAME/apex) and assign a custom domain ----------- */
+// Real DNS verification: resolves live CNAME + A records and only persists
+// the domain once it demonstrably points at Vercel (or the self-hosted
+// CNAME target). Prevents the storefront from silently 404ing on an
+// unattached domain.
+router.post('/verify', requireSeller, async (req, res, next) => {
+  try {
+    const domain = String(req.body?.customDomain || '')
+      .toLowerCase().trim().replace(/^https?:\/\//, '').split('/')[0];
+    if (!domain) return res.status(400).json({ error: 'customDomain is required.' });
+    if (!DOMAIN_RE.test(domain)) {
+      return res.status(400).json({ error: 'Enter a valid domain, e.g. shop.mybrand.com' });
+    }
+    if (domain.endsWith(`.${PLATFORM_DOMAIN}`)) {
+      return res.status(400).json({ error: 'Platform subdomains are generated automatically. Use the subdomain field.' });
+    }
+
+    /* ---- Live DNS lookups (each wrapped: a lookup failure is just "not detected") ---- */
+    let cnameRecords = [];
+    try { cnameRecords = (await dns.resolveCname(domain)).map((r) => r.toLowerCase().replace(/\.$/, '')); } catch { /* none */ }
+
+    let aRecords = [];
+    try { aRecords = await dns.resolve4(domain); } catch { /* none */ }
+
+    const cnameOk = cnameRecords.some((r) =>
+      r === VERCEL_CNAME || r === CNAME_TARGET || r.endsWith(`.${VERCEL_CNAME}`));
+    const apexOk = aRecords.some((ip) => VERCEL_APEX_IPS.has(ip));
+
+    const records = { cname: cnameRecords, a: aRecords, match: cnameOk ? 'cname' : (apexOk ? 'apex' : null) };
+
+    if (!cnameOk && !apexOk) {
+      return res.status(400).json({
+        verified: false,
+        error: 'DNS record not detected yet. Point your domain at Ghana Stores, then retry.',
+        records,
+        instructions: {
+          www: `CNAME ${domain.split('.')[0] === 'www' ? domain : 'www'} -> ${VERCEL_CNAME}`,
+          apex: `For the apex root use an ALIAS to ${VERCEL_CNAME} or A records to ${[...VERCEL_APEX_IPS].join(', ')}`,
+          ttl: '3600 seconds (provisioning can take a few minutes).',
+        },
+      });
+    }
+
+    // Records verified - make sure no other tenant owns the domain.
+    const taken = await query(
+      'SELECT 1 FROM stores WHERE custom_domain = $1 AND id <> $2',
+      [domain, req.auth.sub],
+    );
+    if (taken.rows.length > 0) {
+      return res.status(409).json({ error: 'This domain is already connected to another store.' });
+    }
+    await query('UPDATE stores SET custom_domain = $2 WHERE id = $1', [req.auth.sub, domain]);
+
+    return res.json({
+      verified: true,
+      customDomain: domain,
+      records,
+      message: 'Domain verified and connected. SSL is provisioned automatically by Vercel.',
     });
   } catch (err) {
     next(err);

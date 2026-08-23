@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "start": "NODE_ENV=production node server.js",
     "db:init": "node scripts/dbInit.js",
-    "db:seed": "node scripts/dbSeed.js"
+    "db:seed": "node scripts/dbSeed.js",
+    "token": "node scripts/mintToken.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

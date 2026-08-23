@@ -7,7 +7,7 @@ import { Router } from 'express';
 import { query, withTransaction } from '../config/database.js';
 import { requireSeller } from '../middleware/authMiddleware.js';
 import { sendLowStockAlertSms } from '../services/smsService.js';
-import { money } from '../utils/helpers.js';
+import { money, toIntOr } from '../utils/helpers.js';
 
 const router = Router();
 
@@ -252,6 +252,7 @@ router.patch('/variants/:id/stock', requireSeller, async (req, res, next) => {
       sendLowStockAlertSms(storeRes.rows[0], [
         { ...smsCandidate, product_name: 'Variant' },
       ]).catch(() => {});
+      recordLowStockAlerts(req.auth.sub, [smsCandidate]).catch(() => {});
     }
 
     res.json({
@@ -290,6 +291,183 @@ router.get('/low-stock', requireSeller, async (req, res, next) => {
     next(err);
   }
 });
+
+/* ------------------- Upsert variants by SKU (spec endpoint) ------------------ */
+// body: { productId, variants: [{ sku, attributeName, attributeValue, stockQuantity, reorderLevel }] }
+// Creates or updates SKU variants; a variant created at/below its re-order
+// level arms the low-stock alert latch immediately.
+router.post('/variants', requireSeller, async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const productId = b.productId || b.product_id;
+    if (!productId) return res.status(400).json({ error: 'productId is required.' });
+
+    const owner = await query(
+      'SELECT 1 FROM products WHERE id = $1 AND store_id = $2',
+      [productId, req.auth.sub],
+    );
+    if (owner.rows.length === 0) return res.status(404).json({ error: 'Product not found.' });
+
+    const incoming = Array.isArray(b.variants) ? b.variants : [];
+    if (incoming.length === 0) return res.status(400).json({ error: 'Provide at least one variant.' });
+
+    const results = await withTransaction(async (t) => {
+      const saved = [];
+      for (const v of incoming) {
+        const attrName = String(v.attributeName || v.optionName || v.attribute_name || 'Default').trim();
+        const attrValue = String(v.attributeValue || v.optionValue || v.attribute_value || '').trim();
+        if (!attrValue) continue;
+        const stockQuantity = Math.max(0, toIntOr(v.stockQuantity ?? v.stock_quantity, 0));
+        const reorderLevel = Math.max(0, toIntOr(v.reorderLevel ?? v.reorder_level ?? v.lowStockThreshold, 5));
+
+        const row = await t.query(
+          `INSERT INTO product_variants
+             (store_id, product_id, option_name, option_value, sku, price_override,
+              stock_quantity, low_stock_threshold, low_stock_alert_sent, updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, NOW())
+           ON CONFLICT (product_id, option_name, option_value) DO UPDATE SET
+             sku = COALESCE(EXCLUDED.sku, product_variants.sku),
+             price_override = COALESCE(EXCLUDED.price_override, product_variants.price_override),
+             stock_quantity = EXCLUDED.stock_quantity,
+             low_stock_threshold = EXCLUDED.low_stock_threshold,
+             low_stock_alert_sent =
+               CASE WHEN EXCLUDED.stock_quantity > EXCLUDED.low_stock_threshold
+                    THEN FALSE ELSE product_variants.low_stock_alert_sent END,
+             updated_at = NOW()
+           RETURNING id, option_name, option_value, sku,
+                     stock_quantity, low_stock_threshold, low_stock_alert_sent`,
+          [req.auth.sub, productId, attrName, attrValue,
+            v.sku ? String(v.sku).trim() : null,
+            v.priceOverride != null ? money(v.priceOverride) : null,
+            stockQuantity, reorderLevel, stockQuantity <= reorderLevel],
+        );
+        saved.push(row.rows[0]);
+      }
+      return saved;
+    });
+
+    res.json({
+      message: `${results.length} variant(s) saved.`,
+      variants: results.map((r) => ({
+        id: r.id,
+        sku: r.sku,
+        attributeName: r.option_name,
+        attributeValue: r.option_value,
+        stockQuantity: Number(r.stock_quantity),
+        reorderLevel: Number(r.low_stock_threshold),
+        lowStockAlertSent: r.low_stock_alert_sent,
+      })),
+    });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A variant with those attributes already exists on the product.' });
+    }
+    next(err);
+  }
+});
+
+/* ----------------------- Deduct variant stock on a sale ---------------------- */
+// body: { items: [{ variantId, quantity }] }
+// Atomically decrements each variant (FOR UPDATE), rolls back the whole batch
+// when any line exceeds available stock, and dispatches a single Arkesel
+// low-stock SMS when any variant crosses its re-order level.
+router.post('/deduct', requireSeller, async (req, res, next) => {
+  try {
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (items.length === 0) return res.status(400).json({ error: 'Provide at least one item.' });
+
+    let deducted = 0;
+    const alertCandidates = [];
+    const updated = await withTransaction(async (t) => {
+      const rows = [];
+      for (const raw of items) {
+        const qty = toIntOr(raw.quantity, 0);
+        if (qty <= 0) continue;
+        const lock = await t.query(
+          `SELECT v.id, v.product_id, p.name AS product_name, v.option_value,
+                  v.stock_quantity, v.low_stock_threshold, v.low_stock_alert_sent
+             FROM product_variants v
+             JOIN products p ON p.id = v.product_id
+            WHERE v.id = $1 AND v.store_id = $2
+            FOR UPDATE OF v`,
+          [raw.variantId || raw.variant_id, req.auth.sub],
+        );
+        const v = lock.rows[0];
+        if (!v) {
+          throw Object.assign(new Error('A variant no longer exists in your catalog.'), { status: 404 });
+        }
+        if (Number(v.stock_quantity) < qty) {
+          throw Object.assign(
+            new Error(`${v.product_name} (${v.option_value}) only has ${v.stock_quantity} in stock.`),
+            { status: 409, code: 'INSUFFICIENT_STOCK' },
+          );
+        }
+        const resUpd = await t.query(
+          `UPDATE product_variants
+              SET stock_quantity = stock_quantity - $2, updated_at = NOW()
+            WHERE id = $1
+            RETURNING id, stock_quantity, low_stock_threshold, low_stock_alert_sent`,
+          [v.id, qty],
+        );
+        const after = resUpd.rows[0];
+        rows.push(after);
+        deducted += qty;
+
+        if (collectLowStockCandidate(after)) {
+          await persistAlertFlag(t, after.id, true);
+          alertCandidates.push({
+            id: after.id,
+            product_name: v.product_name,
+            option_value: v.option_value,
+            stock_quantity: after.stock_quantity,
+            low_stock_threshold: after.low_stock_threshold,
+          });
+        }
+      }
+      return rows.map((r) => ({
+        id: r.id,
+        stockQuantity: Number(r.stock_quantity),
+        lowStockThreshold: Number(r.low_stock_threshold),
+      }));
+    });
+
+    // Post-commit dispatch: SMS + audit trail never roll back with the stock.
+    if (alertCandidates.length > 0) {
+      const storeRes = await query('SELECT name, phone FROM stores WHERE id = $1', [req.auth.sub]);
+      sendLowStockAlertSms(storeRes.rows[0], alertCandidates).catch(() => {});
+      recordLowStockAlerts(req.auth.sub, alertCandidates).catch(() => {});
+    }
+
+    res.json({
+      message: `Stock deducted for ${items.length} line item(s).`,
+      deductedUnits: deducted,
+      variants: updated,
+      alertsFired: alertCandidates.length,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------------- Low-stock SMS audit trail ------------------------------- */
+// Persists an immutable row in product_restock_alerts (db/variants_and_alerts.sql)
+// each time a re-order SMS is dispatched, with the stock level at alert time.
+export async function recordLowStockAlerts(storeId, candidates) {
+  const list = Array.isArray(candidates) ? candidates : [];
+  if (list.length === 0) return;
+  for (const c of list) {
+    try {
+      await query(
+        `INSERT INTO product_restock_alerts (store_id, variant_id, stock_quantity, reorder_level)
+         VALUES ($1,$2,$3,$4)`,
+        [storeId, c.id, Number(c.stock_quantity ?? c.stockQuantity ?? 0),
+          Number(c.low_stock_threshold ?? c.reorder_level ?? 0)],
+      );
+    } catch (err) {
+      console.warn('[inventory] restock alert log skipped:', err.message);
+    }
+  }
+}
 
 export default router;
 

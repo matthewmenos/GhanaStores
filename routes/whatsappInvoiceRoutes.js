@@ -332,7 +332,7 @@ function trySellerAuth(req) {
   }
 }
 
-router.get('/:id/receipt', async (req, res, next) => {
+async function streamOrderPdf(req, res) {
   try {
     const { rows } = await query(
       `SELECT o.*, json_build_object(
@@ -380,6 +380,95 @@ router.get('/:id/receipt', async (req, res, next) => {
     );
     res.setHeader('Content-Length', pdfBuffer.length);
     return res.send(pdfBuffer);
+  } catch (err) {
+    throw err;
+  }
+}
+
+// GET /api/orders/:id/receipt and GET /api/orders/:id/invoice both stream the
+// same QR-verified PDF invoice (store/customer/itemized-GHS/payment status).
+router.get('/:id/receipt', (req, res, next) => {
+  streamOrderPdf(req, res).catch(next);
+});
+router.get('/:id/invoice', (req, res, next) => {
+  streamOrderPdf(req, res).catch(next);
+});
+
+/* ------------------- /api/whatsapp/generate-link --------------------------- */
+// Public helper: converts a buyer cart into a pre-formatted, URL-encoded
+// WhatsApp click-to-chat payload aimed at the merchant. No stock is reserved
+// here - checkout does that - the link simply opens WhatsApp with the order
+// teed up so the buyer can confirm conversationally.
+export const whatsappRouter = Router();
+
+whatsappRouter.post('/generate-link', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    let store = req.tenantStore || req.storeFromHost || null;
+    if (!store && b.slug) {
+      const s = await query(
+        `SELECT id, name, whatsapp_number, phone, momo_number, currency
+           FROM stores WHERE subdomain_slug = $1 LIMIT 1`,
+        [String(b.slug).toLowerCase()],
+      );
+      store = s.rows[0];
+    }
+    if (!store) return res.status(404).json({ error: 'Store not found.' });
+
+    const customer = b.customer || {};
+    const customerPhone = normalizeGhPhone(customer.phone);
+    if (!customerPhone) {
+      return res.status(400).json({ error: 'A valid Ghana phone number is required.' });
+    }
+
+    const items = Array.isArray(b.items) ? b.items : [];
+    if (items.length === 0) return res.status(400).json({ error: 'Cart is empty.' });
+
+    const itemLines = [];
+    let subtotal = 0;
+    items.forEach((it, i) => {
+      const qty = toIntOr(it.quantity, 0);
+      if (qty <= 0) return;
+      const unit = money(it.unitPrice ?? it.unit_price ?? 0);
+      const lineTotal = money(unit * qty);
+      subtotal = money(subtotal + lineTotal);
+      const label = `${String(it.name || 'Product').slice(0, 60)}${it.variant ? ` (${it.variant})` : ''}`;
+      itemLines.push(`${i + 1}. ${label} x${qty} - ${formatGhs(lineTotal)}`);
+    });
+    if (itemLines.length === 0) return res.status(400).json({ error: 'No valid line items.' });
+
+    const deliveryFee = money(b.deliveryFee ?? 0);
+    const total = money(subtotal + deliveryFee);
+    const customerName = String(customer.name || 'Buyer').trim();
+
+    const messageLines = [
+      `*NEW ORDER - ${store.name}*`,
+      '',
+      '*ITEMS*',
+      ...itemLines,
+      '',
+      `Subtotal: ${formatGhs(subtotal)}`,
+      ...(deliveryFee > 0 ? [`Delivery: ${formatGhs(deliveryFee)}`] : []),
+      `*TOTAL: ${formatGhs(total)}*`,
+      '',
+      `Customer: ${customerName} (${customerPhone})`,
+      ...(String(customer.address || '').trim() ? [`Address: ${String(customer.address).trim()}`] : []),
+      ...(store.momo_number ? [`Pay via MoMo: ${store.momo_number}`] : ['Payment: Cash on delivery']),
+      ...(String(b.notes || '').trim() ? [`Notes: ${String(b.notes).trim()}`] : []),
+      `Placed via ${process.env.PLATFORM_DOMAIN || 'ghastores.com'}`,
+    ];
+
+    const sellerPhone = normalizeGhPhone(store.whatsapp_number || store.phone) ||
+      String(store.whatsapp_number || store.phone).replace(/\D/g, '');
+    const waLink = `https://wa.me/${sellerPhone}?text=${encodeURIComponent(messageLines.join('\n'))}`;
+
+    return res.json({
+      waLink,
+      sellerPhone,
+      itemCount: itemLines.length,
+      totals: { subtotal, deliveryFee, total, currency: 'GHS' },
+      preview: messageLines.map((l) => l.replace(/\*/g, '')).join('\n'),
+    });
   } catch (err) {
     next(err);
   }
