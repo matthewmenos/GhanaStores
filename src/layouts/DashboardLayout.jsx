@@ -13,7 +13,7 @@
 import { useEffect, useState } from 'react';
 import {
   IconStore, IconDashboard, IconCart, IconBox, IconReceipt,
-  IconWallet, IconLogout,
+  IconWallet, IconLogout, IconX,
 } from '../components/icons.jsx';
 import {
   Palette, Type, MessageSquare, Layout,
@@ -29,6 +29,8 @@ const DEFAULT_CUSTOM_THEME_CONFIG = {
   features: { enable_whatsapp_buy: true, whatsapp_number: '233201234567', whatsapp_custom_message: 'Hello! I would like to buy', enable_trust_badges: true, enable_hero_banner: true, enable_stock_counter: false },
   layout: { border_radius: '0.75rem', product_grid_columns: 3, header_style: 'left_aligned' },
 };
+
+/* -------------------------- Sidebar nav config -------------------------- */
 
 /* -------------------------- Sidebar nav config -------------------------- */
 const DASHBOARD_NAV = [
@@ -276,7 +278,7 @@ function CustomizerSidebar({
           aria-live="polite"
         >
           {isPublishing ? <Loader2 size={15} className="animate-spin" /> : publishSuccess ? <Check size={15} /> : null}
-          {isPublishing ? 'Publishing...' : publishSuccess ? 'Published' : 'Publish'}
+          {isPublishing ? 'Publishing…' : publishSuccess ? 'Published' : 'Publish'}
         </button>
       </div>
 
@@ -401,7 +403,7 @@ function CustomizerSidebar({
           style={{ background: customTheme.colors.primary }}
           aria-hidden="true"
         />
-        <span>Live Storefront Synchronization Active</span>
+                <span>Live Storefront Synchronization Active</span>
       </div>
     </>
   );
@@ -426,13 +428,6 @@ export default function DashboardLayout({ children }) {
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
 
-  // Keep sidebar context in sync with the URL (deep links, back button).
-  useEffect(() => {
-    setSidebarMode(
-      route.startsWith('#/dashboard/themes/customizer') ? 'customizer' : 'main',
-    );
-  }, [route]);
-
   useEffect(() => {
     const handleLogout = () => setStore(null);
     window.addEventListener('gs:logout', handleLogout);
@@ -445,7 +440,7 @@ export default function DashboardLayout({ children }) {
 
   const onNavigate = (hash) => {
     setRoute(hash);
-    window.location.hash = hash;
+    setSidebarMode(hash === '#/dashboard/themes/customizer' ? 'customizer' : 'main');
   };
 
   const onBack = () => {
