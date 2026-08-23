@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ThemeCustomizer - split-screen WordPress-style live theme editor.
  * Left: accordion control panel (~400px). Right: reactive sandbox canvas.
  * Persists the complete extended token schema via PUT /api/store/theme
@@ -215,7 +215,7 @@ const DEMO_PRODUCTS = [
 ];
 
 /** Split-screen theme customizer: controls left, live sandbox right. */
-export default function ThemeCustomizer() {
+export default function ThemeCustomizer({ chromeless = false }) {
   const [config, setConfig] = useState(DEFAULT_CUSTOM_THEME_CONFIG);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -273,7 +273,7 @@ export default function ThemeCustomizer() {
   return (
     <div className="flex h-[calc(100vh-9rem)] min-h-[560px] gap-4">
       {/* LEFT - control panel (~400px fixed) */}
-      <aside className="flex w-[400px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <aside className={`${chromeless ? 'hidden' : 'flex'} w-[400px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm`}>
         {/* Top bar */}
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
           <button
@@ -439,7 +439,7 @@ export default function ThemeCustomizer() {
     </div>
   );
 }
-function LivePreview({ config }) {
+export function LivePreview({ config }) {
   const { branding, typography, colors, features, layout } = config;
   const fontStack = (FONT_OPTIONS.find((f) => f.value === typography.font_family) || FONT_OPTIONS[0]).stack;
   const centered = layout.header_style === 'centered';
