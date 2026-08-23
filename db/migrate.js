@@ -262,13 +262,13 @@ export async function migrate() {
   }
 
   // Lazy-load @vercel/postgres so the matrix seeder stays importable offline.
-  const { Client } = await import('@vercel/postgres');
+  const { createPool } = await import('@vercel/postgres');
 
-  let client;
+  let pool;
   let ok = false;
   try {
     const isNeon = /\.neon\.tech/i.test(connectionString);
-    client = new Client({
+    pool = createPool({
       connectionString,
       ssl: isNeon ? { rejectUnauthorized: false } : undefined,
       // Connection pool sizing - small for a bounded seed script.
@@ -276,13 +276,11 @@ export async function migrate() {
       idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 10000,
     });
-    await client.connect();
-    console.log('[db:migrate] Connected to PostgreSQL.');
 
     // ---- 1. DDL (idempotent) ----
     console.log('[db:migrate] Applying DDL (theme_templates + stores columns) ...');
     for (const stmt of DDL) {
-      await client.query(stmt);
+      await pool.query(stmt);
     }
     console.log('[db:migrate] DDL applied.');
 
@@ -294,7 +292,7 @@ export async function migrate() {
     for (let i = 0; i < presets.length; i++) {
       const p = presets[i];
       try {
-        await client.query(UPSERT_SQL, [p.id, p.name, p.category, p.config]);
+        await pool.query(UPSERT_SQL, [p.id, p.name, p.category, p.config]);
         inserted += 1;
       } catch (e) {
         console.warn(`[db:migrate] upsert failed for ${p.id}: ${e.message.split('\n')[0]}`);
@@ -304,14 +302,14 @@ export async function migrate() {
       }
     }
 
-    console.log(`[db:migrate] ✅ Seeded ${inserted}/${presets.length} theme templates (idempotent upsert).`);
+    console.log(`[db:migrate] Seeded ${inserted}/${presets.length} theme templates (idempotent upsert).`);
     ok = true;
   } finally {
-    if (client) {
+    if (pool) {
       try {
-        await client.end();
+        await pool.end();
       } catch (e) {
-        console.warn(`[db:migrate] client.end warning: ${e.message}`);
+        console.warn(`[db:migrate] pool.end warning: ${e.message}`);
       }
     }
     if (!ok) {
