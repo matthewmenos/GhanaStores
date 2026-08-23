@@ -89,12 +89,12 @@ export default function ViewportBar({ device, onDeviceChange, measured }) {
   const h = measured?.height ? Math.round(measured.height) : preset.height;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-200 bg-white px-3 py-2">
-      {/* Device toggles */}
+    <div className="relative flex items-center border-b border-slate-200 bg-white px-3 py-2">
+      {/* Device toggles - centered pill group */}
       <div
         role="group"
         aria-label="Preview device size"
-        className="flex items-center gap-1 rounded-lg bg-slate-100 p-1"
+        className="mx-auto flex items-center gap-1 rounded-lg bg-slate-100 p-1"
       >
         {DEVICE_ORDER.map((key) => {
           const { Icon, label, title } = DEVICE_PRESETS[key];
@@ -126,9 +126,9 @@ export default function ViewportBar({ device, onDeviceChange, measured }) {
         })}
       </div>
 
-      {/* Live rendered width x height pixel badge */}
+      {/* Live rendered width x height pixel badge (dynamically updating) */}
       <span
-        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-mist px-2 py-1 font-mono text-[11px] font-semibold tabular-nums text-slate-600"
+        className="absolute right-3 inline-flex items-center gap-1 rounded-md border border-slate-200 bg-mist px-2 py-1 font-mono text-[11px] font-semibold tabular-nums text-slate-600"
         title="Rendered preview dimensions"
       >
         {w}px × {h}px

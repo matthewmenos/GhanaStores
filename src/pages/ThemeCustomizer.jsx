@@ -1,22 +1,30 @@
-﻿/**
- * ThemeCustomizer - split-screen WordPress-style live theme editor.
- * Left: accordion control panel (~400px). Right: reactive sandbox canvas.
- * Persists the complete extended token schema via PUT /api/store/theme
- * as `custom_theme_config`.
+/**
+ * ThemeCustomizer - expanded LIVE STOREFRONT PREVIEW CANVAS.
+ *
+ * Editing controls live in the sidebar-replacing accordion panel owned by
+ * DashboardLayout; this module renders ONLY the preview surface so it can
+ * consume the entire flex-1 width beside the 380px control column:
+ *
+ *   - ViewportBar device toolbar (centered pill group + live pixel badge)
+ *   - Fluid dark sandbox canvas with subtle gradient shading
+ *   - Animated device frame (transition-all duration-300 ease-in-out)
+ *
+ * State sync: DashboardLayout persists every edit to localStorage and
+ * broadcasts a `gs:theme-preview` CustomEvent; this page mirrors it in
+ * real time, so merchants see keystroke-level updates while typing.
+ *
+ * Exports the shared token schema utilities consumed by DashboardLayout.
  *
  * STRICT RULE: pure SVG / Lucide React icons ONLY - ZERO emojis.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, ghs } from '../api.js';
-import ViewportBar, { DEVICE_PRESETS, useElementSize } from '../components/ViewportBar.jsx';
+import { useEffect, useRef, useState } from 'react';
+import { ghs } from '../api.js';
 import {
-  IconStore, IconAlert, IconWhatsApp, IconCart,
+  IconStore, IconWhatsApp, IconCart,
   IconShield, IconTruck, IconWallet,
 } from '../components/icons.jsx';
-import {
-  ArrowLeft, ChevronDown, Loader2, Check, Palette, Type,
-  MessageCircle, Eye,
-} from 'lucide-react';
+import { Eye } from 'lucide-react';
+import ViewportBar, { DEVICE_PRESETS, useElementSize } from '../components/ViewportBar.jsx';
 
 /* ----------------------------- Token vocabulary ---------------------------- */
 const FONT_OPTIONS = [
@@ -24,26 +32,6 @@ const FONT_OPTIONS = [
   { value: 'Poppins', label: 'Poppins', stack: "'Poppins', system-ui, sans-serif" },
   { value: 'Outfit', label: 'Outfit', stack: "'Outfit', system-ui, sans-serif" },
   { value: 'Plus Jakarta Sans', label: 'Plus Jakarta Sans', stack: "'Plus Jakarta Sans', system-ui, sans-serif" },
-];
-
-const RADIUS_OPTIONS = [
-  { value: '0rem', label: 'Crisp - 0rem' },
-  { value: '0.375rem', label: 'Subtle - 0.375rem' },
-  { value: '0.75rem', label: 'Rounded - 0.75rem' },
-  { value: '1.5rem', label: 'Extra Rounded - 1.5rem' },
-];
-
-const GRID_COLUMN_OPTIONS = [2, 3, 4];
-
-const HEADER_STYLE_OPTIONS = [
-  { value: 'left_aligned', label: 'Left aligned' },
-  { value: 'centered', label: 'Centered' },
-];
-
-/** Mobile-only panel switcher (<768px): editing controls vs rendered storefront. */
-const MOBILE_TABS = [
-  { key: 'controls', label: 'Control Panel' },
-  { key: 'preview', label: 'Live Preview' },
 ];
 
 /** Deep customization token schema with safe fallback defaults. */
@@ -119,98 +107,7 @@ export function seedConfigFromTheme(themeConfig) {
     },
   });
 }
-/* ------------------------------ Form primitives ---------------------------- */
-function TextField({ label, value, onChange, placeholder, type = 'text' }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</span>
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-charcoal outline-none transition focus:ring-2 focus:ring-blue-500/40"
-      />
-    </label>
-  );
-}
 
-function ColorField({ label, value, onChange }) {
-  return (
-    <label className="flex items-center justify-between gap-3 py-1">
-      <span className="text-xs font-semibold text-charcoal">{label}</span>
-      <span className="flex items-center gap-2">
-        <span className="font-mono text-[11px] uppercase text-slate-500">{String(value).toUpperCase()}</span>
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`${label} color picker`}
-          className="h-7 w-9 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
-        />
-      </span>
-    </label>
-  );
-}
-
-function SelectField({ label, value, options, onChange }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-lg border border-slate-200 bg-mist px-3 py-2 text-sm font-medium text-charcoal outline-none transition focus:ring-2 focus:ring-blue-500/40"
-      >
-        {options.map((o) => {
-          const val = typeof o === 'object' ? o.value : o;
-          const lab = typeof o === 'object' ? o.label : String(o);
-          return <option key={val} value={val}>{lab}</option>;
-        })}
-      </select>
-    </label>
-  );
-}
-
-function Toggle({ label, checked, onChange }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="group flex w-full items-center justify-between gap-3 rounded-lg py-1.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-    >
-      <span className="text-xs font-semibold text-charcoal group-hover:text-blue-700">{label}</span>
-      <span className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-300 ${checked ? 'bg-blue-600' : 'bg-slate-300'}`}>
-        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-300 ${checked ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
-      </span>
-    </button>
-  );
-}
-
-/** Smooth collapsible control group. */
-function AccordionSection({ icon: Icon, title, open, onToggle, children }) {
-  return (
-    <div className="border-b border-slate-100 last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition hover:bg-mist/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
-      >
-        <span className="rounded-lg bg-blue-50 p-1.5 text-blue-600"><Icon size={14} /></span>
-        <span className="flex-1 text-xs font-extrabold uppercase tracking-wide text-charcoal">{title}</span>
-        <ChevronDown size={15} className={`text-slate-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
-      </button>
-      <div className={`grid transition-all duration-300 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-        <div className="overflow-hidden">
-          <div className="space-y-2.5 px-4 pb-4">{children}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
 /* --------------------------- Live preview canvas --------------------------- */
 const DEMO_PRODUCTS = [
   { id: 1, name: 'Kente Cloth Scarf', price: 180, img: 'https://picsum.photos/seed/kente/400/300', stock: 3 },
@@ -221,281 +118,6 @@ const DEMO_PRODUCTS = [
   { id: 6, name: 'Adinkra Wall Art', price: 210, img: 'https://picsum.photos/seed/adinkra/400/300', stock: 5 },
 ];
 
-/** Split-screen theme customizer: controls left, live sandbox right. */
-export default function ThemeCustomizer({ chromeless = false }) {
-  const [config, setConfig] = useState(DEFAULT_CUSTOM_THEME_CONFIG);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [published, setPublished] = useState(false);
-  const [toast, setToast] = useState(null);
-  const [baseline, setBaseline] = useState('');
-  const [openSections, setOpenSections] = useState({
-    identity: true,
-    colors: true,
-    whatsapp: false,
-    layout: false,
-  });
-  /* Responsive preview state: simulated device + mobile tab switcher. */
-  const [device, setDevice] = useState('desktop');
-  const [mobileTab, setMobileTab] = useState('controls'); // 'controls' | 'preview'
-  const frameRef = useRef(null);
-  const frameSize = useElementSize(frameRef);
-
-  // Seed the editor from the store's currently published (merged) theme.
-  useEffect(() => {
-    api
-      .get('/api/store/theme')
-      .then((res) => {
-        const seeded = res.theme?.config ? seedConfigFromTheme(res.theme.config) : DEFAULT_CUSTOM_THEME_CONFIG;
-        setConfig(seeded);
-        setBaseline(JSON.stringify(seeded));
-      })
-      .catch((e) => setLoadError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const patch = (section, field) => (value) =>
-    setConfig((prev) => ({
-      ...prev,
-      [section]: { ...prev[section], [field]: value },
-    }));
-
-  const toggleSection = (key) =>
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
-
-  const isDirty = baseline === '' ? false : JSON.stringify(config) !== baseline;
-
-  async function publish() {
-    if (saving) return;
-    setSaving(true);
-    setToast(null);
-    try {
-      await api.put('/api/store/theme', { custom_theme_config: config });
-      setPublished(true);
-      setBaseline(JSON.stringify(config));
-      setToast({ ok: true, msg: 'Custom theme published to your storefront.' });
-    } catch (e) {
-      setToast({ ok: false, msg: e.message });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="flex h-[calc(100vh-9rem)] min-h-[560px] flex-col gap-3 md:flex-row md:gap-4">
-      {/* Tabbed mobile switcher (<768px): merchants flip between the
-          control panel and the rendered storefront without squishing. */}
-      {!chromeless && (
-        <div
-          role="tablist"
-          aria-label="Customizer panels"
-          className="flex shrink-0 rounded-xl border border-slate-200 bg-white p-1 shadow-sm md:hidden"
-        >
-          {MOBILE_TABS.map(({ key, label }) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={mobileTab === key}
-              onClick={() => setMobileTab(key)}
-              className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                mobileTab === key
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-500 hover:bg-slate-100'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* LEFT - control panel (~400px fixed on md+, tab-driven full-width on mobile) */}
-      <aside
-        className={`${chromeless || mobileTab !== 'controls' ? 'hidden' : 'flex'} w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:flex md:w-[400px]`}
-      >
-        {/* Top bar */}
-        <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
-          <button
-            type="button"
-            onClick={() => { window.location.hash = '#/dashboard/themes'; }}
-            aria-label="Back to theme market"
-            className="rounded-lg bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          >
-            <ArrowLeft size={15} />
-          </button>
-          <div className="min-w-0 flex-1 text-center">
-            <p className="truncate text-xs font-extrabold uppercase tracking-wide text-charcoal">Theme Customizer</p>
-            <p className="text-[10px] font-medium text-slate-400">
-              {isDirty ? 'Unsaved changes' : published ? 'All changes live' : 'In sync with storefront'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={publish}
-            disabled={saving || loading}
-            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-extrabold text-white shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
-              published && !isDirty ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
-            } disabled:cursor-not-allowed disabled:opacity-60`}
-          >
-            {saving ? (
-              <><Loader2 size={14} className="animate-spin" /> Saving...</>
-            ) : published && !isDirty ? (
-              <><Check size={14} /> Published</>
-            ) : (
-              <>Publish Changes</>
-            )}
-          </button>
-        </div>
-
-        {/* Accordion panel */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="flex h-40 items-center justify-center gap-2 text-slate-400">
-              <Loader2 size={20} className="animate-spin" />
-              <span className="text-sm font-medium">Loading your theme...</span>
-            </div>
-          ) : loadError ? (
-            <div className="m-4 flex items-start gap-2 rounded-xl bg-red-50 p-4 text-sm font-medium text-red-700" role="alert">
-              <IconAlert size={16} className="mt-0.5 shrink-0" /> {loadError}
-            </div>
-          ) : (
-            <>
-              <AccordionSection
-                icon={IconStore}
-                title="Identity & Tagline"
-                open={openSections.identity}
-                onToggle={() => toggleSection('identity')}
-              >
-                <TextField label="Site Title" value={config.branding.site_title}
-                  onChange={patch('branding', 'site_title')} placeholder="My Ghana Store" />
-                <TextField label="Subtitle / Tagline" value={config.branding.tagline}
-                  onChange={patch('branding', 'tagline')} placeholder="Quality goods, delivered nationwide" />
-              </AccordionSection>
-
-              <AccordionSection
-                icon={Palette}
-                title="Colors & Accents"
-                open={openSections.colors}
-                onToggle={() => toggleSection('colors')}
-              >
-                <ColorField label="Primary Accent" value={config.colors.primary} onChange={patch('colors', 'primary')} />
-                <ColorField label="Background" value={config.colors.background} onChange={patch('colors', 'background')} />
-                <ColorField label="Surface Card" value={config.colors.surface} onChange={patch('colors', 'surface')} />
-                <ColorField label="Text" value={config.colors.text} onChange={patch('colors', 'text')} />
-                <ColorField label="Highlight / Accent" value={config.colors.accent} onChange={patch('colors', 'accent')} />
-              </AccordionSection>
-
-              <AccordionSection
-                icon={MessageCircle}
-                title="WhatsApp & Integrations"
-                open={openSections.whatsapp}
-                onToggle={() => toggleSection('whatsapp')}
-              >
-                <Toggle
-                  label="Direct WhatsApp Purchasing"
-                  checked={config.features.enable_whatsapp_buy}
-                  onChange={patch('features', 'enable_whatsapp_buy')}
-                />
-                {config.features.enable_whatsapp_buy && (
-                  <div className="space-y-2.5 border-l-2 border-blue-100 pl-3">
-                    <TextField
-                      label="WhatsApp Number"
-                      type="tel"
-                      value={config.features.whatsapp_number}
-                      onChange={patch('features', 'whatsapp_number')}
-                      placeholder="233201234567"
-                    />
-                    <TextField
-                      label="Default Checkout Message"
-                      value={config.features.whatsapp_custom_message}
-                      onChange={patch('features', 'whatsapp_custom_message')}
-                      placeholder="Hello! I would like to buy"
-                    />
-                  </div>
-                )}
-                <div className="pt-1">
-                  <Toggle
-                    label="Hero Banner"
-                    checked={config.features.enable_hero_banner}
-                    onChange={patch('features', 'enable_hero_banner')}
-                  />
-                  <Toggle
-                    label="Trust Badges Bar"
-                    checked={config.features.enable_trust_badges}
-                    onChange={patch('features', 'enable_trust_badges')}
-                  />
-                  <Toggle
-                    label="Stock Counter on Cards"
-                    checked={config.features.enable_stock_counter}
-                    onChange={patch('features', 'enable_stock_counter')}
-                  />
-                </div>
-              </AccordionSection>
-
-              <AccordionSection
-                icon={Type}
-                title="Layout & Typography"
-                open={openSections.layout}
-                onToggle={() => toggleSection('layout')}
-              >
-                <SelectField
-                  label="Font Family"
-                  value={config.typography.font_family}
-                  options={FONT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
-                  onChange={patch('typography', 'font_family')}
-                />
-                <SelectField
-                  label="Corner Border Radius"
-                  value={config.layout.border_radius}
-                  options={RADIUS_OPTIONS}
-                  onChange={patch('layout', 'border_radius')}
-                />
-                <SelectField
-                  label="Product Grid Columns"
-                  value={String(config.layout.product_grid_columns)}
-                  options={GRID_COLUMN_OPTIONS.map((n) => ({ value: String(n), label: `${n} columns` }))}
-                  onChange={(v) => patch('layout', 'product_grid_columns')(Number(v))}
-                />
-                <SelectField
-                  label="Header Style"
-                  value={config.layout.header_style}
-                  options={HEADER_STYLE_OPTIONS}
-                  onChange={patch('layout', 'header_style')}
-                />
-              </AccordionSection>
-            </>
-          )}
-        </div>
-      </aside>
-
-      {/* RIGHT - reactive live preview canvas */}
-      <section
-        className={`${mobileTab === 'preview' ? 'flex' : 'hidden'} relative min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-300/70 bg-slate-300/40 md:flex`}
-      >
-        {/* Device viewport toolbar */}
-        <ViewportBar device={device} onDeviceChange={setDevice} measured={frameSize} />
-
-        {/* Fluid sandbox canvas hosting the animated device frame */}
-        <div className="relative flex flex-1 justify-center items-start overflow-auto bg-slate-950 p-4 md:p-8">
-          <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white md:left-8 md:top-8">
-            <Eye size={11} /> Live Preview
-          </span>
-
-          {/* Simulated device frame - smooth size morphing between presets */}
-          <div
-            ref={frameRef}
-            data-device={device}
-            className={`shrink-0 overflow-hidden bg-white shadow-2xl ring-1 ring-slate-700/50 transition-all duration-300 ease-in-out ${DEVICE_PRESETS[device].className}`}
-          >
-            <LivePreview config={config} viewportWidth={frameSize.width} />
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
 export function LivePreview({ config, viewportWidth = null }) {
   const { branding, typography, colors, features, layout } = config;
   const fontStack = (FONT_OPTIONS.find((f) => f.value === typography.font_family) || FONT_OPTIONS[0]).stack;
@@ -546,7 +168,9 @@ export function LivePreview({ config, viewportWidth = null }) {
             <p className="text-sm font-extrabold leading-tight" style={{ fontWeight: typography.heading_weight }}>
               {branding.site_title}
             </p>
-            {branding.tagline && <p className="text-[11px] opacity-70">{branding.tagline}</p>}
+            {branding.tagline && (
+              <p className={`text-[11px] opacity-70 ${compact ? 'max-w-[180px] truncate' : ''}`}>{branding.tagline}</p>
+            )}
           </div>
         </div>
         <button
@@ -558,6 +182,7 @@ export function LivePreview({ config, viewportWidth = null }) {
           <IconCart size={14} className="inline" /> Cart (0)
         </button>
       </header>
+
       {/* Hero banner (conditional) */}
       {features.enable_hero_banner && (
         <section
@@ -650,3 +275,61 @@ export function LivePreview({ config, viewportWidth = null }) {
     </div>
   );
 }
+
+/**
+ * Expanded preview canvas page. Hydrates from the shell's cached working
+ * copy, then mirrors every `gs:theme-preview` broadcast for real-time
+ * rendering while merchants edit the accordion panel.
+ */
+export default function ThemeCustomizer() {
+  const readCachedConfig = () => {
+    try {
+      const raw = localStorage.getItem('gs_custom_theme');
+      return raw ? normalizeCustomThemeConfig(JSON.parse(raw)) : DEFAULT_CUSTOM_THEME_CONFIG;
+    } catch {
+      return DEFAULT_CUSTOM_THEME_CONFIG;
+    }
+  };
+
+  const [config, setConfig] = useState(readCachedConfig);
+  const [device, setDevice] = useState('desktop');
+  const frameRef = useRef(null);
+  const frameSize = useElementSize(frameRef);
+
+  useEffect(() => {
+    const onPreviewUpdate = (e) => {
+      if (e?.detail) setConfig(normalizeCustomThemeConfig(e.detail));
+    };
+    window.addEventListener('gs:theme-preview', onPreviewUpdate);
+    return () => window.removeEventListener('gs:theme-preview', onPreviewUpdate);
+  }, []);
+
+  return (
+    <div className="flex h-[calc(100vh-9rem)] min-h-[560px] w-full">
+      {/* EXPANDED canvas - consumes all remaining width beside the panel */}
+      <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 shadow-inner">
+        {/* Top device viewport toolbar */}
+        <ViewportBar device={device} onDeviceChange={setDevice} measured={frameSize} />
+
+        {/* Responsive frame container - centered with dynamic shading */}
+        <div className="relative flex flex-1 items-start justify-center overflow-auto p-4 md:p-8">
+          <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white md:left-8 md:top-8">
+            <Eye size={11} /> Live Preview
+          </span>
+
+          {/* Simulated device frame - smooth size morphing between presets */}
+          <div
+            ref={frameRef}
+            data-device={device}
+            className={`shrink-0 overflow-hidden bg-white shadow-2xl ring-1 ring-black/40 drop-shadow-xl transition-all duration-300 ease-in-out ${DEVICE_PRESETS[device].className}`}
+          >
+            <LivePreview config={config} viewportWidth={frameSize.width} />
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
+

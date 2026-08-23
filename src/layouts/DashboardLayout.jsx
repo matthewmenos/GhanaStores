@@ -1,12 +1,18 @@
 /**
  * DashboardLayout.jsx
- * Split-pane seller shell: fixed 320px contextual sidebar that hosts
- * Mode A (standard dashboard navigation) OR Mode B (theme-customizer
- * sub-sidebar), driven by a single `sidebarMode` state.
+ * Split-pane seller shell implementing a sidebar-REPLACING customizer:
  *
- * Switch is instantaneous and in-place — primary nav content swaps
- * to customizer controls so the main canvas keeps its full width with
- * no horizontal squeeze or double scrollbars.
+ *   isCustomizerOpen === false -> dark navy (#0B1120) primary nav column,
+ *                                 280px wide, hosting Analytics / POS /
+ *                                 Inventory / Orders / Theme Market.
+ *   isCustomizerOpen === true  -> dark nav unmounts completely and the light
+ *                                 accordion control panel (380px) slides into
+ *                                 the leftmost slot, granting the entire
+ *                                 remaining flex-1 width to the live
+ *                                 storefront preview canvas.
+ *
+ * Below 768px both panels become an off-canvas drawer sheet driven by the
+ * sticky mobile top bar hamburger.
  *
  * STRICT RULE: pure SVG / Lucide React icons ONLY — zero emojis everywhere.
  */
@@ -17,18 +23,12 @@ import {
 } from '../components/icons.jsx';
 import {
   Palette, Type, MessageSquare, Layout,
-  ChevronLeft, Loader2, Check, Menu,
+  ChevronLeft, Loader2, Check, Menu, ArrowLeft,
 } from 'lucide-react';
 import { api } from '../api.js';
-
-/* ----------------------- Default token schema ----------------------- */
-const DEFAULT_CUSTOM_THEME_CONFIG = {
-  branding: { site_title: 'My Ghana Store', tagline: 'Quality goods, delivered nationwide', logo_url: '', favicon_url: '' },
-  typography: { font_family: 'Inter', heading_weight: '700', body_size: 16 },
-  colors: { primary: '#0B6E4F', background: '#FFFFFF', surface: '#F8FAFC', text: '#0F172A', accent: '#F59E0B' },
-  features: { enable_whatsapp_buy: true, whatsapp_number: '233201234567', whatsapp_custom_message: 'Hello! I would like to buy', enable_trust_badges: true, enable_hero_banner: true, enable_stock_counter: false },
-  layout: { border_radius: '0.75rem', product_grid_columns: 3, header_style: 'left_aligned' },
-};
+import {
+  DEFAULT_CUSTOM_THEME_CONFIG, normalizeCustomThemeConfig, seedConfigFromTheme,
+} from '../pages/ThemeCustomizer.jsx';
 
 /* -------------------------- Sidebar nav config -------------------------- */
 const DASHBOARD_NAV = [
@@ -39,14 +39,16 @@ const DASHBOARD_NAV = [
   { hash: '#/orders',   label: 'Orders',      icon: IconReceipt },
 ];
 
+/** Route that flips the shell into sidebar-replacing customizer mode. */
+const CUSTOMIZER_ROUTE = '#/dashboard/themes/customizer';
+
 /**
  * Shared off-canvas drawer shell: overlay sheet below 768px, static
- * sidebar column from md (768px) up. Both Mode A (main dashboard nav)
- * and Mode B (customizer sub-sidebar) panels reuse it so the sliding
- * behaviour stays identical across sidebar modes.
+ * sidebar column from md (768px) up. Width/background/borders are
+ * supplied per panel (280px navy nav vs 380px light customizer panel).
  */
-const DRAWER_SHELL =
-  'fixed inset-y-0 left-0 z-50 flex h-full w-80 shrink-0 flex-col overflow-y-auto transition-transform duration-300 ease-in-out md:static md:z-0 md:translate-x-0';
+const DRAWER_POSITION =
+  'fixed inset-y-0 left-0 z-50 flex h-full shrink-0 flex-col overflow-y-auto transition-transform duration-300 ease-in-out md:static md:z-0 md:h-screen md:max-w-none md:translate-x-0';
 
 /* ----------------------------- Accordion item --------------------------- */
 function Accordion({ id, icon: Icon, title, children, defaultOpen = false }) {
@@ -62,9 +64,9 @@ function Accordion({ id, icon: Icon, title, children, defaultOpen = false }) {
         id={`accordion-toggle-${id}`}
         className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
       >
-        <span className="flex items-center gap-2">
-          {Icon && <Icon size={16} />}
-          {title}
+        <span className="flex min-w-0 items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider text-charcoal">
+          {Icon && <Icon size={15} className="shrink-0 text-slate-500" />}
+          <span className="truncate">{title}</span>
         </span>
         <ChevronLeft
           size={14}
@@ -160,9 +162,9 @@ function MainSidebar({ open, store, onNavClose, route, onNavigate, isActive }) {
     <aside
       id="gs-sidebar"
       aria-label="Seller dashboard navigation"
-      className={`${DRAWER_SHELL} bg-slate-900 text-slate-100 ${
+      className={`${DRAWER_POSITION} h-full w-[280px] max-w-[92vw] overflow-y-auto bg-[#0B1120] text-slate-100 ${
         open ? 'translate-x-0 shadow-2xl' : '-translate-x-full invisible'
-      } md:visible md:shadow-none`}
+      } md:visible md:w-[280px] md:shadow-none`}
     >
       {/* Brand header */}
       <div className="-mx-2 mb-2 flex h-12 items-center justify-between">
@@ -266,45 +268,54 @@ function CustomizerSidebar({
     <aside
       id="gs-sidebar"
       aria-label="Theme customizer controls"
-      className={`${DRAWER_SHELL} bg-white text-slate-900 ${
+      className={`${DRAWER_POSITION} h-screen w-[380px] max-w-[92vw] border-r border-gray-200 bg-white text-slate-900 ${
         open ? 'translate-x-0 shadow-2xl' : '-translate-x-full invisible'
-      } md:visible md:shadow-none`}
+      } md:visible md:w-[380px] md:shadow-none`}
     >
-      {/* Sub-header */}
-      <div className="flex items-center justify-between border-b border-slate-200 p-3">
-        <div className="flex items-center gap-2">
+      {/* Top control header */}
+      <header className="border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={onBack}
-            className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
-            aria-label="Back"
+            className="inline-flex min-w-0 items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-200 hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
-            <ChevronLeft size={18} />
+            <ArrowLeft size={14} aria-hidden="true" />
+            <span className="truncate">Back to Dashboard</span>
           </button>
-          <span className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
-            Customizer
+
+          <button
+            type="button"
+            onClick={onPublish}
+            disabled={isPublishing}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-live="polite"
+          >
+            {isPublishing ? (
+              <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+            ) : publishSuccess ? (
+              <Check size={14} aria-hidden="true" />
+            ) : null}
+            {isPublishing ? 'Publishing' : publishSuccess ? 'Saved' : 'Publish Changes'}
+          </button>
+        </div>
+
+        <div className="mt-3">
+          <p className="text-sm font-extrabold uppercase tracking-wide text-charcoal">Theme Customizer</p>
+          <p className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
             <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ background: customTheme.colors.primary }}
+              className={`h-1.5 w-1.5 rounded-full ${publishSuccess ? 'bg-emerald-brand' : ''}`}
+              style={publishSuccess ? undefined : { background: customTheme.colors.primary }}
               aria-hidden="true"
             />
-          </span>
+            {publishSuccess ? 'All changes are live' : 'In sync with storefront'}
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={onPublish}
-          disabled={isPublishing}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
-          aria-live="polite"
-        >
-          {isPublishing ? <Loader2 size={15} className="animate-spin" /> : publishSuccess ? <Check size={15} /> : null}
-          {isPublishing ? 'Publishing…' : publishSuccess ? 'Published' : 'Publish'}
-        </button>
-      </div>
+      </header>
 
       {/* Scrollable accordion body */}
-      <div className="flex-1 space-y-1 overflow-y-auto px-1 py-1">
-        {/* Identity */}
+      <div className="flex-1 space-y-1 overflow-y-auto border-gray-200 px-1 py-1">
+        {/* Section 1: identity */}
         <Accordion id="identity" icon={Type} title="Identity & Tagline">
           <div className="space-y-2">
             <input
@@ -324,19 +335,19 @@ function CustomizerSidebar({
           </div>
         </Accordion>
 
-        {/* Colors */}
+        {/* Section 2: colors */}
         <Accordion id="colors" icon={Palette} title="Colors & Accents" defaultOpen>
           <div className="space-y-2">
             <ColorRow label="Primary" value={customTheme.colors.primary} onChange={color('colors.primary')} />
             <ColorRow label="Background" value={customTheme.colors.background} onChange={color('colors.background')} />
-            <ColorRow label="Surface" value={customTheme.colors.surface} onChange={color('colors.surface')} />
+            <ColorRow label="Surface Card" value={customTheme.colors.surface} onChange={color('colors.surface')} />
             <ColorRow label="Text" value={customTheme.colors.text} onChange={color('colors.text')} />
-            <ColorRow label="Accent" value={customTheme.colors.accent} onChange={color('colors.accent')} />
+            <ColorRow label="Highlight" value={customTheme.colors.accent} onChange={color('colors.accent')} />
           </div>
         </Accordion>
 
-        {/* WhatsApp Commerce */}
-        <Accordion id="whatsapp" icon={MessageSquare} title="WhatsApp Commerce">
+        {/* Section 3: WhatsApp commerce */}
+        <Accordion id="whatsapp" icon={MessageSquare} title="WhatsApp & Integrations">
           <div className="space-y-2">
             <ToggleRow
               label="Direct WhatsApp Purchasing"
@@ -415,28 +426,25 @@ function CustomizerSidebar({
           </div>
         </Accordion>
       </div>
-
-      {/* Sub-sidebar footer */}
-      <div className="flex items-center gap-2 border-t border-slate-200 px-3 py-2 text-xs text-slate-500">
-        <span
-          className="h-1.5 w-1.5 rounded-full"
-          style={{ background: customTheme.colors.primary }}
-          aria-hidden="true"
-        />
-                <span>Live Storefront Synchronization Active</span>
-      </div>
     </aside>
   );
 }
+
 export default function DashboardLayout({ children }) {
-  const [sidebarMode, setSidebarMode] = useState('main');
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(
+    window.location.hash === CUSTOMIZER_ROUTE,
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [route, setRoute] = useState(window.location.hash || '#/');
   const [store, setStore] = useState(null);
 
   const [customTheme, setCustomTheme] = useState(() => {
-    const cached = localStorage.getItem('gs_custom_theme');
-    return cached ? JSON.parse(cached) : DEFAULT_CUSTOM_THEME_CONFIG;
+    try {
+      const cached = localStorage.getItem('gs_custom_theme');
+      return cached ? normalizeCustomThemeConfig(JSON.parse(cached)) : DEFAULT_CUSTOM_THEME_CONFIG;
+    } catch {
+      return DEFAULT_CUSTOM_THEME_CONFIG;
+    }
   });
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
@@ -444,7 +452,11 @@ export default function DashboardLayout({ children }) {
   const isActive = (hash) => route === hash || (hash !== '#/' && route.startsWith(`${hash}/`));
 
   useEffect(() => {
-    const onChange = () => setRoute(window.location.hash || '#/');
+    const onChange = () => {
+      const hash = window.location.hash || '#/';
+      setRoute(hash);
+      setIsCustomizerOpen(hash === CUSTOMIZER_ROUTE);
+    };
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
@@ -455,9 +467,31 @@ export default function DashboardLayout({ children }) {
     return () => window.removeEventListener('gs:logout', handleLogout);
   }, []);
 
+  /* Persist the working copy so the preview page can hydrate instantly. */
   useEffect(() => {
     localStorage.setItem('gs_custom_theme', JSON.stringify(customTheme));
   }, [customTheme]);
+
+  /* Broadcast every edit so the live storefront preview canvas re-renders
+     in real time without prop drilling through the hash router. */
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('gs:theme-preview', { detail: customTheme }));
+  }, [customTheme]);
+
+  /* First visit with an empty cache: seed from the currently published theme. */
+  useEffect(() => {
+    if (localStorage.getItem('gs_custom_theme')) return;
+    let alive = true;
+    api.get('/api/store/theme')
+      .then((res) => {
+        if (!alive || !res?.theme?.config) return;
+        const seeded = normalizeCustomThemeConfig(seedConfigFromTheme(res.theme.config));
+        setCustomTheme(seeded);
+        localStorage.setItem('gs_custom_theme', JSON.stringify(seeded));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   /* Escape dismisses the mobile drawer sheet (<768px only). */
   useEffect(() => {
@@ -471,15 +505,15 @@ export default function DashboardLayout({ children }) {
 
   const onNavigate = (hash) => {
     setRoute(hash);
-    setSidebarMode(hash === '#/dashboard/themes/customizer' ? 'customizer' : 'main');
+    setIsCustomizerOpen(hash === CUSTOMIZER_ROUTE);
     setDrawerOpen(false); // navigating from the mobile drawer dismisses it
   };
 
   const onBack = () => {
-    setSidebarMode('main');
+    setIsCustomizerOpen(false); // restores the dark primary nav sidebar
+    setDrawerOpen(false);
     setRoute('#/dashboard/themes');
     window.location.hash = '#/dashboard/themes';
-    setDrawerOpen(false);
   };
 
   const onPublish = async () => {
@@ -509,7 +543,16 @@ export default function DashboardLayout({ children }) {
         }`}
       />
 
-      {sidebarMode === 'customizer' ? (
+      {!isCustomizerOpen ? (
+        <MainSidebar
+          open={drawerOpen}
+          store={store}
+          onNavClose={() => setDrawerOpen(false)}
+          route={route}
+          onNavigate={onNavigate}
+          isActive={isActive}
+        />
+      ) : (
         <CustomizerSidebar
           open={drawerOpen}
           customTheme={customTheme}
@@ -518,15 +561,6 @@ export default function DashboardLayout({ children }) {
           publishSuccess={publishSuccess}
           onPublish={onPublish}
           onBack={onBack}
-        />
-      ) : (
-        <MainSidebar
-          open={drawerOpen}
-          store={store}
-          onNavClose={() => setDrawerOpen(false)}
-          route={route}
-          onNavigate={onNavigate}
-          isActive={isActive}
         />
       )}
 
@@ -547,7 +581,7 @@ export default function DashboardLayout({ children }) {
             <IconStore size={18} className="text-blue-400" />
             Ghana Stores
           </span>
-          {sidebarMode === 'customizer' && (
+          {isCustomizerOpen && (
             <button
               type="button"
               onClick={onPublish}
