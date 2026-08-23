@@ -14,6 +14,7 @@ import SellerInventory from './pages/SellerInventory.jsx';
 import SellerThemeSelector from './pages/SellerThemeSelector.jsx';
 import SellerThemeMarketplace from './pages/SellerThemeMarketplace.jsx';
 import ThemeDemoViewer from './pages/ThemeDemoViewer.jsx';
+import ThemeCustomizer from './pages/ThemeCustomizer.jsx';
 
 const NAV = [
   { hash: '#/', label: 'Analytics', icon: 'dashboard' },
@@ -70,12 +71,14 @@ export default function App() {
       case '#/orders': return <SellerOrders />;
       case '#/themes': return <SellerThemeSelector />;
       case '#/dashboard/themes': return <SellerThemeMarketplace />;
+      case '#/dashboard/themes/customizer': return <ThemeCustomizer />;
       default: return <SellerAnalytics />;
     }
   }, [route]);
 
   const activeTitle = NAV.find((n) => n.hash === route)?.label
     || (route.startsWith('#/dashboard/themes/demo/') ? 'Live Theme Demo'
+      : route.startsWith('#/dashboard/themes/customizer') ? 'Theme Customizer'
       : route === '#/orders' ? 'Orders' : 'Analytics');
 
   if (!authed) {

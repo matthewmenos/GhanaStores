@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { IconStore, IconCheck, IconAlert } from '../components/icons.jsx';
 import {
-  Eye, Star, Filter, BadgeCheck, LayoutGrid, Search, X,
+  Eye, Star, Filter, BadgeCheck, LayoutGrid, Search, X, Palette,
 } from 'lucide-react';
 
 const CATEGORY_LABELS = {
@@ -265,10 +265,18 @@ export default function SellerThemeMarketplace() {
       )}
 
       {/* Results meta */}
-      <p className="text-xs font-medium text-slate-500" aria-live="polite">
-        Showing {visible.length} of {themes.length} templates
-        {pill !== 'popular' ? ` - ${FILTER_PILLS.find((p) => p.key === pill)?.label}` : ''}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium text-slate-500" aria-live="polite">
+          Showing {visible.length} of {themes.length} templates
+          {pill !== 'popular' ? ` - ${FILTER_PILLS.find((p) => p.key === pill)?.label}` : ''}
+        </p>
+        <a
+          href="#/dashboard/themes/customizer"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-mist px-3 py-1.5 text-xs font-bold text-charcoal transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <Palette size={13} /> Open Customizer
+        </a>
+      </div>
 
       {/* Template grid */}
       {loading ? (
