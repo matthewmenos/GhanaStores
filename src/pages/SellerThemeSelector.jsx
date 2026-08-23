@@ -4,10 +4,9 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { IconSearch, IconCheck, IconStore } from '../components/icons.jsx';
+import { IconSearch, IconCheck, IconAlert, IconStore } from '../components/icons.jsx';
 import {
   Eye, Filter, Monitor, Smartphone, LayoutGrid,
-  CheckCircle, AlertCircle,
 } from 'lucide-react';
 
 const CATEGORY_LABELS = {
@@ -276,7 +275,7 @@ export default function SellerThemeSelector() {
           disabled={!selected || applying}
           className="ml-auto flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
         >
-          {applying ? <LayoutGrid size={16} className="animate-pulse" /> : <CheckCircle size={16} />}
+          {applying ? <LayoutGrid size={16} className="animate-pulse" /> : <IconCheck size={16} />}
           Apply Theme
         </button>
       </div>
@@ -286,7 +285,7 @@ export default function SellerThemeSelector() {
           className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium
             ${feedback.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}
         >
-          {feedback.ok ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+          {feedback.ok ? <IconCheck size={16} /> : <IconAlert size={16} />}
           {feedback.msg}
         </div>
       )}

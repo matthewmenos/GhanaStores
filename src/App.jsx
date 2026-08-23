@@ -12,13 +12,15 @@ import SellerPOS from './pages/SellerPOS.jsx';
 import SellerPayouts from './pages/SellerPayouts.jsx';
 import SellerInventory from './pages/SellerInventory.jsx';
 import SellerThemeSelector from './pages/SellerThemeSelector.jsx';
+import SellerThemeMarketplace from './pages/SellerThemeMarketplace.jsx';
+import ThemeDemoViewer from './pages/ThemeDemoViewer.jsx';
 
 const NAV = [
   { hash: '#/', label: 'Analytics', icon: 'dashboard' },
   { hash: '#/pos', label: 'POS Terminal', icon: 'cart' },
   { hash: '#/payouts', label: 'Payouts', icon: 'wallet' },
   { hash: '#/inventory', label: 'Inventory', icon: 'box' },
-  { hash: '#/themes', label: 'Themes', icon: 'layout' },
+  { hash: '#/dashboard/themes', label: 'Theme Market', icon: 'layout' },
 ];
 
 function useHashRoute() {
@@ -55,17 +57,24 @@ export default function App() {
   }, []);
 
   const page = useMemo(() => {
+    // Live demo viewer with a dynamic :templateId segment.
+    if (route.startsWith('#/dashboard/themes/demo/')) {
+      const templateId = decodeURIComponent(route.slice('#/dashboard/themes/demo/'.length));
+      return templateId ? <ThemeDemoViewer templateId={templateId} /> : <SellerThemeMarketplace />;
+    }
     switch (route) {
       case '#/pos': return <SellerPOS />;
       case '#/payouts': return <SellerPayouts />;
-                  case '#/inventory': return <SellerInventory />;
+      case '#/inventory': return <SellerInventory />;
       case '#/themes': return <SellerThemeSelector />;
+      case '#/dashboard/themes': return <SellerThemeMarketplace />;
       default: return <SellerAnalytics />;
     }
   }, [route]);
 
   const activeTitle = NAV.find((n) => n.hash === route)?.label
-    || (route === '#/orders' ? 'Orders' : 'Analytics');
+    || (route.startsWith('#/dashboard/themes/demo/') ? 'Live Theme Demo'
+      : route === '#/orders' ? 'Orders' : 'Analytics');
 
   if (!authed) {
     return (
@@ -93,7 +102,7 @@ export default function App() {
         </div>
         <nav className="mt-2 space-y-1 px-3">
           {NAV.map(({ hash, label }) => {
-            const active = route === hash;
+            const active = route === hash || (hash !== '#/' && route.startsWith(`${hash}/`));
             return (
               <a key={hash} href={hash} onClick={() => setNavOpen(false)}
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${

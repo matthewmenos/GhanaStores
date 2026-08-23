@@ -162,4 +162,125 @@ router.put('/store/theme', requireSeller, async (req, res, next) => {
   }
 });
 
+/* --------------------------- Live demo mock catalog ------------------------ */
+// Realistic Ghanaian sample inventory powering the interactive demo sandbox.
+const DEMO_CATALOG = {
+  fashion: [
+    { name: 'Kente Cloth Scarf', price: 180, tagline: 'Handwoven in Bonwire' },
+    { name: 'Ankara Print Dress', price: 250, tagline: 'Bold wax-print cotton' },
+    { name: 'Leather Sandals', price: 150, tagline: 'Full-grain local leather' },
+    { name: 'Krobo Bead Necklace', price: 80, tagline: 'Recycled glass beads' },
+    { name: "Men's Batakari Smock", price: 320, tagline: 'Northern embroidery' },
+    { name: 'Bolga Basket Bag', price: 120, tagline: 'Leather-trimmed raffia' },
+  ],
+  electronics: [
+    { name: 'Solar Power Bank 20k mAh', price: 280, tagline: 'Charges in 6h sun' },
+    { name: 'Bluetooth Party Speaker', price: 190, tagline: '12h battery life' },
+    { name: 'Wireless Earbuds Pro', price: 165, tagline: 'ANC + charging case' },
+    { name: '4G LTE MiFi Router', price: 340, tagline: 'All-network SIM slot' },
+    { name: 'LED Rechargeable Lamp', price: 95, tagline: 'Dumsor-proof backup' },
+    { name: 'Phone Repair Toolkit', price: 75, tagline: '38-piece precision set' },
+  ],
+  beauty: [
+    { name: 'Raw Shea Butter 250g', price: 45, tagline: 'Unrefined, Tamale co-op' },
+    { name: 'African Black Soap', price: 18, tagline: 'Plantain ash formula' },
+    { name: 'Coconut Hair Oil 200ml', price: 60, tagline: 'Cold-pressed, Cape Coast' },
+    { name: 'Turmeric Glow Mask', price: 55, tagline: 'Brightening clay blend' },
+    { name: 'Aloe Vera Gel 150ml', price: 38, tagline: '99% organic aloe' },
+    { name: 'Rosewater Face Toner', price: 42, tagline: 'Alcohol-free hydrating' },
+  ],
+  marketplace: [
+    { name: 'Carved Wooden Bowl', price: 85, tagline: 'Sese wood, Ahwiaa craft' },
+    { name: 'Woven Bolga Basket', price: 110, tagline: 'Large market tote' },
+    { name: 'Ceramic Mug Set of 4', price: 95, tagline: 'Kiln-fired stoneware' },
+    { name: 'Adinkra Wall Art', price: 210, tagline: 'Hand-stamped symbols' },
+    { name: 'Raffia Placemats x4', price: 70, tagline: 'Natural dye weaves' },
+    { name: 'Beaded Keyring', price: 25, tagline: 'Assorted Adinkra charms' },
+  ],
+  groceries: [
+    { name: 'Jasmine Rice 5kg', price: 145, tagline: 'Premium long grain' },
+    { name: 'Red Palm Oil 1L', price: 48, tagline: 'Village-pressed, unrefined' },
+    { name: 'Groundnut Paste 500g', price: 32, tagline: '100% roasted peanuts' },
+    { name: 'Plantain Chips 100g', price: 15, tagline: 'Sea salt crunch' },
+    { name: 'Fresh Beef Tomatoes 1kg', price: 22, tagline: 'Farm-fresh daily' },
+    { name: 'Whole Tilapia (Frozen)', price: 65, tagline: 'Lake Volta sourced' },
+  ],
+};
+
+/** Deterministic mock inventory for a theme's live demo sandbox. */
+function buildSampleItems(category) {
+  const base = DEMO_CATALOG[category] || DEMO_CATALOG.marketplace;
+  const badges = ['Bestseller', 'New arrival', 'Low stock', 'Hot deal'];
+  return base.map((item, i) => {
+    const price = Number(item.price);
+    return {
+      id: `${category}-demo-${i + 1}`,
+      name: item.name,
+      tagline: item.tagline,
+      price,
+      compareAtPrice: Math.round(price * 1.25),
+      description: `${item.name} - ${item.tagline}. Quality-checked, packed securely and available for same-day dispatch within Greater Accra.`,
+      imageUrl: `https://picsum.photos/seed/${encodeURIComponent(`${category}-${i + 1}`)}/640/420`,
+      rating: Math.round((4.2 + ((i * 7) % 8) / 10) * 10) / 10,
+      reviewCount: 12 + i * 9,
+      badge: badges[i % badges.length],
+    };
+  });
+}
+
+/* ------------------------------ Public demo feed --------------------------- */
+// GET /api/themes/demo/:templateId - config + mock items for the sandbox viewer
+router.get('/themes/demo/:templateId', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      'SELECT id, name, category, config FROM theme_templates WHERE id = $1',
+      [req.params.templateId],
+    );
+    const theme = rows[0];
+    if (!theme) {
+      return res.status(404).json({ error: 'Theme template not found.' });
+    }
+    res.json({
+      theme: { id: theme.id, name: theme.name, category: theme.category, config: theme.config },
+      sampleItems: buildSampleItems(theme.category),
+      deliveryZones: ['Accra Metro', 'Tema', 'Kasoa', 'Kumasi (next-day)'],
+      payments: ['MTN MoMo', 'Telecel Cash', 'AirtelTigo Money', 'Cash on Delivery'],
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------------------- Seller current theme ------------------------- */
+// GET /api/store/theme - the authenticated store's currently published theme
+router.get('/store/theme', requireSeller, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT s.active_theme_id     AS theme_id,
+              t.name                AS theme_name,
+              t.category            AS theme_category,
+              t.config              AS base_config,
+              s.custom_theme_config
+         FROM stores s
+         LEFT JOIN theme_templates t ON t.id = s.active_theme_id
+        WHERE s.id = $1`,
+      [req.auth.sub],
+    );
+    const row = rows[0];
+    res.json({
+      activeThemeId: row?.theme_id || null,
+      theme: row && row.theme_id
+        ? {
+            id: row.theme_id,
+            name: row.theme_name,
+            category: row.theme_category,
+            config: mergeConfig(row.base_config || {}, row.custom_theme_config || {}),
+          }
+        : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
