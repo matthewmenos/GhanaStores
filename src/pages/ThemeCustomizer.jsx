@@ -6,8 +6,9 @@
  *
  * STRICT RULE: pure SVG / Lucide React icons ONLY - ZERO emojis.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, ghs } from '../api.js';
+import ViewportBar, { DEVICE_PRESETS, useElementSize } from '../components/ViewportBar.jsx';
 import {
   IconStore, IconAlert, IconWhatsApp, IconCart,
   IconShield, IconTruck, IconWallet,
@@ -37,6 +38,12 @@ const GRID_COLUMN_OPTIONS = [2, 3, 4];
 const HEADER_STYLE_OPTIONS = [
   { value: 'left_aligned', label: 'Left aligned' },
   { value: 'centered', label: 'Centered' },
+];
+
+/** Mobile-only panel switcher (<768px): editing controls vs rendered storefront. */
+const MOBILE_TABS = [
+  { key: 'controls', label: 'Control Panel' },
+  { key: 'preview', label: 'Live Preview' },
 ];
 
 /** Deep customization token schema with safe fallback defaults. */
@@ -229,6 +236,11 @@ export default function ThemeCustomizer({ chromeless = false }) {
     whatsapp: false,
     layout: false,
   });
+  /* Responsive preview state: simulated device + mobile tab switcher. */
+  const [device, setDevice] = useState('desktop');
+  const [mobileTab, setMobileTab] = useState('controls'); // 'controls' | 'preview'
+  const frameRef = useRef(null);
+  const frameSize = useElementSize(frameRef);
 
   // Seed the editor from the store's currently published (merged) theme.
   useEffect(() => {
@@ -271,9 +283,38 @@ export default function ThemeCustomizer({ chromeless = false }) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-9rem)] min-h-[560px] gap-4">
-      {/* LEFT - control panel (~400px fixed) */}
-      <aside className={`${chromeless ? 'hidden' : 'flex'} w-[400px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm`}>
+    <div className="flex h-[calc(100vh-9rem)] min-h-[560px] flex-col gap-3 md:flex-row md:gap-4">
+      {/* Tabbed mobile switcher (<768px): merchants flip between the
+          control panel and the rendered storefront without squishing. */}
+      {!chromeless && (
+        <div
+          role="tablist"
+          aria-label="Customizer panels"
+          className="flex shrink-0 rounded-xl border border-slate-200 bg-white p-1 shadow-sm md:hidden"
+        >
+          {MOBILE_TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={mobileTab === key}
+              onClick={() => setMobileTab(key)}
+              className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                mobileTab === key
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* LEFT - control panel (~400px fixed on md+, tab-driven full-width on mobile) */}
+      <aside
+        className={`${chromeless || mobileTab !== 'controls' ? 'hidden' : 'flex'} w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:flex md:w-[400px]`}
+      >
         {/* Top bar */}
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
           <button
@@ -430,19 +471,42 @@ export default function ThemeCustomizer({ chromeless = false }) {
       </aside>
 
       {/* RIGHT - reactive live preview canvas */}
-      <section className="relative flex-1 overflow-hidden rounded-2xl border border-slate-300/70 bg-slate-300/40 p-4">
-        <span className="absolute right-6 top-6 z-10 inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-          <Eye size={11} /> Live Preview
-        </span>
-        <LivePreview config={config} />
+      <section
+        className={`${mobileTab === 'preview' ? 'flex' : 'hidden'} relative min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-300/70 bg-slate-300/40 md:flex`}
+      >
+        {/* Device viewport toolbar */}
+        <ViewportBar device={device} onDeviceChange={setDevice} measured={frameSize} />
+
+        {/* Fluid sandbox canvas hosting the animated device frame */}
+        <div className="relative flex flex-1 justify-center items-start overflow-auto bg-slate-950 p-4 md:p-8">
+          <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white md:left-8 md:top-8">
+            <Eye size={11} /> Live Preview
+          </span>
+
+          {/* Simulated device frame - smooth size morphing between presets */}
+          <div
+            ref={frameRef}
+            data-device={device}
+            className={`shrink-0 overflow-hidden bg-white shadow-2xl ring-1 ring-slate-700/50 transition-all duration-300 ease-in-out ${DEVICE_PRESETS[device].className}`}
+          >
+            <LivePreview config={config} viewportWidth={frameSize.width} />
+          </div>
+        </div>
       </section>
     </div>
   );
 }
-export function LivePreview({ config }) {
+export function LivePreview({ config, viewportWidth = null }) {
   const { branding, typography, colors, features, layout } = config;
   const fontStack = (FONT_OPTIONS.find((f) => f.value === typography.font_family) || FONT_OPTIONS[0]).stack;
-  const centered = layout.header_style === 'centered';
+  /* Container-aware breakpoints measured from the device frame itself
+     (ResizeObserver), NOT the browser window - so grid columns, header
+     layout and typography adapt exactly as they would on the physical
+     device inside the simulated viewport. */
+  const compact = viewportWidth != null && viewportWidth > 0 && viewportWidth < 480;
+  const narrow = viewportWidth != null && viewportWidth >= 480 && viewportWidth < 768;
+  const centered = layout.header_style === 'centered' || narrow || compact;
+  const gridColumns = compact ? Math.min(layout.product_grid_columns, 2) : layout.product_grid_columns;
   const waDigits = String(features.whatsapp_number || '').replace(/\D/g, '');
   const waHref = (product) => {
     const msg = `${features.whatsapp_custom_message || 'Hello! I would like to buy'} ${product.name} (${ghs(product.price)}).`;
@@ -451,7 +515,7 @@ export function LivePreview({ config }) {
 
   return (
     <div
-      className="mx-auto h-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-300/70 shadow-2xl"
+      className="h-full w-full overflow-y-auto overflow-x-hidden"
       style={{
         '--primary': colors.primary,
         '--bg': colors.background,
@@ -488,7 +552,7 @@ export function LivePreview({ config }) {
         <button
           type="button"
           aria-label="Cart"
-          className="relative rounded-lg px-3 py-2 text-xs font-bold text-white shadow transition-transform duration-200 hover:-translate-y-0.5"
+          className={`relative rounded-lg text-xs font-bold text-white shadow transition-transform duration-200 hover:-translate-y-0.5 ${compact ? 'px-2 py-1.5' : 'px-3 py-2'}`}
           style={{ background: 'var(--primary)', borderRadius: 'var(--radius)' }}
         >
           <IconCart size={14} className="inline" /> Cart (0)
@@ -497,10 +561,13 @@ export function LivePreview({ config }) {
       {/* Hero banner (conditional) */}
       {features.enable_hero_banner && (
         <section
-          className="px-6 py-9 text-center"
+          className={`text-center ${compact ? 'px-4 py-7' : 'px-6 py-9'}`}
           style={{ background: 'linear-gradient(125deg, var(--primary) 0%, var(--accent) 165%)', color: '#fff' }}
         >
-          <h1 className="text-xl font-extrabold sm:text-2xl" style={{ fontWeight: typography.heading_weight }}>
+          <h1
+            className={`${compact ? 'text-lg' : 'text-xl sm:text-2xl'} font-extrabold`}
+            style={{ fontWeight: typography.heading_weight }}
+          >
             {branding.site_title}
           </h1>
           <p className="mx-auto mt-1.5 max-w-md text-sm opacity-90">
@@ -513,7 +580,7 @@ export function LivePreview({ config }) {
       <section className="p-5" aria-label="Sample products">
         <div
           className="grid gap-4"
-          style={{ gridTemplateColumns: `repeat(${layout.product_grid_columns}, minmax(0,1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0,1fr))` }}
         >
           {DEMO_PRODUCTS.map((p) => (
             <article

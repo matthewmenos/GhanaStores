@@ -17,7 +17,7 @@ import {
 } from '../components/icons.jsx';
 import {
   Palette, Type, MessageSquare, Layout,
-  ChevronLeft, Loader2, Check,
+  ChevronLeft, Loader2, Check, Menu,
 } from 'lucide-react';
 import { api } from '../api.js';
 
@@ -31,8 +31,6 @@ const DEFAULT_CUSTOM_THEME_CONFIG = {
 };
 
 /* -------------------------- Sidebar nav config -------------------------- */
-
-/* -------------------------- Sidebar nav config -------------------------- */
 const DASHBOARD_NAV = [
   { hash: '#/',        label: 'Analytics',     icon: IconDashboard },
   { hash: '#/pos',      label: 'POS Terminal', icon: IconCart },
@@ -40,6 +38,15 @@ const DASHBOARD_NAV = [
   { hash: '#/inventory',label: 'Inventory',   icon: IconBox },
   { hash: '#/orders',   label: 'Orders',      icon: IconReceipt },
 ];
+
+/**
+ * Shared off-canvas drawer shell: overlay sheet below 768px, static
+ * sidebar column from md (768px) up. Both Mode A (main dashboard nav)
+ * and Mode B (customizer sub-sidebar) panels reuse it so the sliding
+ * behaviour stays identical across sidebar modes.
+ */
+const DRAWER_SHELL =
+  'fixed inset-y-0 left-0 z-50 flex h-full w-80 shrink-0 flex-col overflow-y-auto transition-transform duration-300 ease-in-out md:static md:z-0 md:translate-x-0';
 
 /* ----------------------------- Accordion item --------------------------- */
 function Accordion({ id, icon: Icon, title, children, defaultOpen = false }) {
@@ -148,9 +155,15 @@ function useLiveThemeVars(customTheme) {
 }
 
 /* ------------------- Mode A: main dashboard sidebar --------------- */
-function MainSidebar({ store, onNavClose, route, onNavigate, isActive }) {
+function MainSidebar({ open, store, onNavClose, route, onNavigate, isActive }) {
   return (
-    <aside className="flex h-full w-80 flex-col overflow-y-auto bg-slate-900 text-slate-100">
+    <aside
+      id="gs-sidebar"
+      aria-label="Seller dashboard navigation"
+      className={`${DRAWER_SHELL} bg-slate-900 text-slate-100 ${
+        open ? 'translate-x-0 shadow-2xl' : '-translate-x-full invisible'
+      } md:visible md:shadow-none`}
+    >
       {/* Brand header */}
       <div className="-mx-2 mb-2 flex h-12 items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -160,7 +173,7 @@ function MainSidebar({ store, onNavClose, route, onNavigate, isActive }) {
         <button
           type="button"
           onClick={onNavClose}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"
           aria-label="Close menu"
         >
           <IconX size={18} />
@@ -228,6 +241,7 @@ function MainSidebar({ store, onNavClose, route, onNavigate, isActive }) {
 
 /* ------------------- Mode B: theme customizer sidebar ------------- */
 function CustomizerSidebar({
+  open,
   customTheme, setCustomTheme, isPublishing, publishSuccess,
   onPublish, onBack,
 }) {
@@ -249,7 +263,13 @@ function CustomizerSidebar({
   const b = (path) => (v) => updateTokens(path, v);
 
   return (
-    <>
+    <aside
+      id="gs-sidebar"
+      aria-label="Theme customizer controls"
+      className={`${DRAWER_SHELL} bg-white text-slate-900 ${
+        open ? 'translate-x-0 shadow-2xl' : '-translate-x-full invisible'
+      } md:visible md:shadow-none`}
+    >
       {/* Sub-header */}
       <div className="flex items-center justify-between border-b border-slate-200 p-3">
         <div className="flex items-center gap-2">
@@ -405,11 +425,12 @@ function CustomizerSidebar({
         />
                 <span>Live Storefront Synchronization Active</span>
       </div>
-    </>
+    </aside>
   );
 }
 export default function DashboardLayout({ children }) {
   const [sidebarMode, setSidebarMode] = useState('main');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [route, setRoute] = useState(window.location.hash || '#/');
   const [store, setStore] = useState(null);
 
@@ -438,15 +459,27 @@ export default function DashboardLayout({ children }) {
     localStorage.setItem('gs_custom_theme', JSON.stringify(customTheme));
   }, [customTheme]);
 
+  /* Escape dismisses the mobile drawer sheet (<768px only). */
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setDrawerOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
+
   const onNavigate = (hash) => {
     setRoute(hash);
     setSidebarMode(hash === '#/dashboard/themes/customizer' ? 'customizer' : 'main');
+    setDrawerOpen(false); // navigating from the mobile drawer dismisses it
   };
 
   const onBack = () => {
     setSidebarMode('main');
     setRoute('#/dashboard/themes');
     window.location.hash = '#/dashboard/themes';
+    setDrawerOpen(false);
   };
 
   const onPublish = async () => {
@@ -465,8 +498,20 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
+      {/* Off-canvas scrim - tap to dismiss the drawer sheet (<768px) */}
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Close navigation menu"
+        onClick={() => setDrawerOpen(false)}
+        className={`fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
+          drawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+      />
+
       {sidebarMode === 'customizer' ? (
         <CustomizerSidebar
+          open={drawerOpen}
           customTheme={customTheme}
           setCustomTheme={setCustomTheme}
           isPublishing={isPublishing}
@@ -476,14 +521,49 @@ export default function DashboardLayout({ children }) {
         />
       ) : (
         <MainSidebar
+          open={drawerOpen}
           store={store}
-          onNavClose={() => {}}
+          onNavClose={() => setDrawerOpen(false)}
           route={route}
           onNavigate={onNavigate}
           isActive={isActive}
         />
       )}
-      <main className="flex flex-1 flex-col overflow-y-auto">
+
+      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+        {/* Sticky mobile top bar (<768px): hamburger opens the drawer */}
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-700/60 bg-slate-900 px-2 py-2 text-white shadow-lg md:hidden">
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={drawerOpen}
+            aria-controls="gs-sidebar"
+            className="rounded-lg p-2 text-slate-200 transition hover:bg-slate-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <Menu size={20} />
+          </button>
+          <span className="flex items-center gap-2 text-sm font-bold">
+            <IconStore size={18} className="text-blue-400" />
+            Ghana Stores
+          </span>
+          {sidebarMode === 'customizer' && (
+            <button
+              type="button"
+              onClick={onPublish}
+              disabled={isPublishing}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-live="polite"
+            >
+              {isPublishing ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : publishSuccess ? (
+                <Check size={13} />
+              ) : null}
+              {isPublishing ? 'Saving' : publishSuccess ? 'Saved' : 'Publish'}
+            </button>
+          )}
+        </header>
         {children}
       </main>
     </div>
