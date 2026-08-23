@@ -11,12 +11,14 @@ import SellerAnalytics from './pages/SellerAnalytics.jsx';
 import SellerPOS from './pages/SellerPOS.jsx';
 import SellerPayouts from './pages/SellerPayouts.jsx';
 import SellerInventory from './pages/SellerInventory.jsx';
+import SellerThemeSelector from './pages/SellerThemeSelector.jsx';
 
 const NAV = [
   { hash: '#/', label: 'Analytics', icon: 'dashboard' },
   { hash: '#/pos', label: 'POS Terminal', icon: 'cart' },
   { hash: '#/payouts', label: 'Payouts', icon: 'wallet' },
   { hash: '#/inventory', label: 'Inventory', icon: 'box' },
+  { hash: '#/themes', label: 'Themes', icon: 'layout' },
 ];
 
 function useHashRoute() {
@@ -56,7 +58,8 @@ export default function App() {
     switch (route) {
       case '#/pos': return <SellerPOS />;
       case '#/payouts': return <SellerPayouts />;
-      case '#/inventory': return <SellerInventory />;
+                  case '#/inventory': return <SellerInventory />;
+      case '#/themes': return <SellerThemeSelector />;
       default: return <SellerAnalytics />;
     }
   }, [route]);
