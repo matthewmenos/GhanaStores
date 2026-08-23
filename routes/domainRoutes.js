@@ -22,7 +22,9 @@ export const resolveStoreFromHost = resolveTenantStore;
 
 const PLATFORM_DOMAIN = (process.env.PLATFORM_DOMAIN || 'ghastores.com').replace(/^https?:\/\//, '');
 const ROOT_DOMAIN = (process.env.ROOT_DOMAIN || 'localhost:5173').split(':')[0];
-const CNAME_TARGET = process.env.CNAME_TARGET || 'cname.ghastores.com';
+// Falls back to a subdomain OF THE PLATFORM DOMAIN so white-label deploys
+// only need to set PLATFORM_DOMAIN (override with an explicit CNAME_TARGET).
+const CNAME_TARGET = process.env.CNAME_TARGET || `cname.${PLATFORM_DOMAIN}`;
 // Vercel's canonical custom-domain DNS targets.
 const VERCEL_CNAME = 'cname.vercel-dns.com';
 const VERCEL_APEX_IPS = new Set(['76.76.21.21', '76.76.21.22', '76.76.21.61', '76.76.21.98', '76.76.21.241', '76.76.21.242']);

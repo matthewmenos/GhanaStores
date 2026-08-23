@@ -27,6 +27,7 @@ import {
   PanelTop, PanelBottom, Package, FileText, Code2, RotateCcw,
 } from 'lucide-react';
 import { api } from '../api.js';
+import { PLATFORM_DOMAIN, storefrontUrl } from '../config.js';
 import {
   DEFAULT_CUSTOM_THEME_CONFIG, normalizeCustomThemeConfig, seedConfigFromTheme,
 } from '../pages/ThemeCustomizer.jsx';
@@ -233,12 +234,12 @@ function MainSidebar({ open, store, onNavClose, route, onNavigate, isActive }) {
           {store?.name || 'My Store'}
         </p>
         <a
-          href={`https://${store?.subdomain_slug || 'shop'}.ghastores.com`}
+          href={storefrontUrl(store?.subdomain_slug)}
           target="_blank"
           rel="noreferrer"
           className="block truncate text-xs text-blue-400 hover:text-blue-300"
         >
-          {store?.subdomain_slug || 'shop'}.ghastores.com
+          {store?.subdomain_slug || 'shop'}.{PLATFORM_DOMAIN}
         </a>
         <button
           type="button"

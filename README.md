@@ -46,7 +46,8 @@ Demo login after seeding: `demo@ghastores.com` / `ghanastores1`
 | `RISK_THRESHOLD_GHS` | Payouts at/above this need admin review | `5000` |
 | `PORT` | API port | `4000` |
 | `PLATFORM_DOMAIN` | Platform apex domain for subdomains | `ghastores.com` |
-| `CNAME_TARGET` | CNAME target shown to sellers | `cname.ghastores.com` |
+| `CNAME_TARGET` | CNAME target shown to sellers | `cname.<PLATFORM_DOMAIN>` |
+| `VITE_PLATFORM_DOMAIN` | Browser-side apex domain for subdomains (seller PWA) | `VITE_`-prefixed mirror of `PLATFORM_DOMAIN` (`ghastores.com`) |
 | `ENABLE_CRON` | Start the billing scheduler | `false` |
 | `CLIENT_URL` | CORS origin for the PWA | `*` |
 
