@@ -12,8 +12,11 @@ dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Schema + supplemental modules, applied in dependency order.
-const schemaFiles = ['schema.sql', 'variants_and_alerts.sql'].map((f) =>
-  path.join(__dirname, '..', 'db', f));
+const schemaFiles = [
+  path.join(__dirname, '..', 'db', 'schema.sql'),
+  path.join(__dirname, '..', 'db', 'variants_and_alerts.sql'),
+  path.join(__dirname, '..', 'sql', 'orders_schema.sql'),
+];
 
 const connectionString = process.env.DATABASE_URL || '';
 const useSsl = /\.neon\.tech/i.test(connectionString) ||

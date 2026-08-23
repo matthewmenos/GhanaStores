@@ -35,6 +35,7 @@ import inventoryRoutes from './routes/inventoryRoutes.js';
 import domainRoutes from './routes/domainRoutes.js';
 import billingCronRoute from './routes/billingCronRoute.js';
 import themeRoutes from './routes/themeRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
 import { startBillingCron } from './jobs/billingCron.js';
 
 dotenv.config();
@@ -86,6 +87,8 @@ app.use('/api/cron', billingCronRoute);
 // Theme catalog + storefront theme management (mounted at /api so that
 // /api/themes and /api/store/theme/* resolve as written).
 app.use('/api', themeRoutes);
+// Order management: public checkout + seller fulfillment console.
+app.use('/api', orderRoutes);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'API endpoint not found.' }));
 

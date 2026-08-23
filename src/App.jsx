@@ -20,6 +20,7 @@ const NAV = [
   { hash: '#/pos', label: 'POS Terminal', icon: 'cart' },
   { hash: '#/payouts', label: 'Payouts', icon: 'wallet' },
   { hash: '#/inventory', label: 'Inventory', icon: 'box' },
+  { hash: '#/orders', label: 'Orders', icon: 'receipt' },
   { hash: '#/dashboard/themes', label: 'Theme Market', icon: 'layout' },
 ];
 
@@ -66,6 +67,7 @@ export default function App() {
       case '#/pos': return <SellerPOS />;
       case '#/payouts': return <SellerPayouts />;
       case '#/inventory': return <SellerInventory />;
+      case '#/orders': return <SellerOrders />;
       case '#/themes': return <SellerThemeSelector />;
       case '#/dashboard/themes': return <SellerThemeMarketplace />;
       default: return <SellerAnalytics />;
