@@ -1,0 +1,33 @@
+{
+  "name": "Ghana Stores - Seller Platform",
+  "short_name": "Ghana Stores",
+  "description": "Sell online and in-store with Mobile Money payouts, offline POS and WhatsApp commerce.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0F172A",
+  "theme_color": "#2563EB",
+  "lang": "en-GH",
+  "currency": "GHS",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "POS Terminal", "url": "/#/pos" },
+    { "name": "Instant Payouts", "url": "/#/payouts" },
+    { "name": "Inventory", "url": "/#/inventory" }
+  ]
+}

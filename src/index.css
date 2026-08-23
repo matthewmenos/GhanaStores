@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  background-color: #F8FAFC;
+  color: #18181B;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin scrollbars for the dashboard feel */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
