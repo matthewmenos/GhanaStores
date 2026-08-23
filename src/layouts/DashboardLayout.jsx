@@ -635,16 +635,21 @@ export default function DashboardLayout({ children }) {
   }, [drawerOpen]);
 
   const onNavigate = (hash) => {
+    /* The router in App.jsx derives the rendered page from
+       window.location.hash via `hashchange` - so navigation REQUIRES a real
+       hash write; updating local state alone would only move the active-link
+       highlight while the page stays frozen. */
+    if (window.location.hash !== hash) window.location.hash = hash;
     setRoute(hash);
     setIsCustomizerOpen(hash === CUSTOMIZER_ROUTE);
     setDrawerOpen(false); // navigating from the mobile drawer dismisses it
   };
 
   const onBack = () => {
-    setIsCustomizerOpen(false); // restores the dark primary nav sidebar
-    setDrawerOpen(false);
-    setRoute('#/dashboard/themes');
-    window.location.hash = '#/dashboard/themes';
+    // Same primitive as sidebar links: leaves customizer mode (the target
+    // hash is not CUSTOMIZER_ROUTE), closes the drawer and restores the
+    // dark primary nav sidebar.
+    onNavigate('#/dashboard/themes');
   };
 
   /* Advanced > Reset: restore every token to schema defaults. */
