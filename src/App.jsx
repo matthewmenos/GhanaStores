@@ -11,6 +11,7 @@ import SellerAnalytics from './pages/SellerAnalytics.jsx';
 import SellerPOS from './pages/SellerPOS.jsx';
 import SellerPayouts from './pages/SellerPayouts.jsx';
 import SellerInventory from './pages/SellerInventory.jsx';
+import SellerOrders from './pages/SellerOrders.jsx';
 import SellerThemeSelector from './pages/SellerThemeSelector.jsx';
 import SellerThemeMarketplace from './pages/SellerThemeMarketplace.jsx';
 import ThemeDemoViewer from './pages/ThemeDemoViewer.jsx';
