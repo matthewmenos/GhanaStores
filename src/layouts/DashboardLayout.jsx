@@ -24,6 +24,7 @@ import {
 import {
   Palette, Type, MessageSquare, Layout,
   ChevronLeft, Loader2, Check, Menu, ArrowLeft,
+  PanelTop, PanelBottom, Package, FileText, Code2, RotateCcw,
 } from 'lucide-react';
 import { api } from '../api.js';
 import {
@@ -123,17 +124,28 @@ function ToggleRow({ label, value, onChange }) {
         role="switch"
         aria-checked={value}
         onClick={() => onChange(!value)}
-        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-          value ? 'bg-blue-600' : 'bg-slate-300'
-        }`}
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${value ? 'bg-blue-600' : 'bg-slate-300'}`}
       >
         <span className="sr-only">{label}</span>
         <span
-          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-            value ? 'translate-x-4' : ''
-          }`}
+          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4' : ''}`}
         />
       </button>
+    </label>
+  );
+}
+
+/* --------------------------- Multiline field -------------------------- */
+function TextAreaRow({ label, value, onChange, rows = 3, mono = false }) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-xs font-medium text-slate-600">{label}</span>
+      <textarea
+        value={value}
+        rows={rows}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full rounded border border-slate-300 px-2 py-1.5 leading-relaxed ${mono ? 'font-mono text-[11px]' : 'text-sm'}`}
+      />
     </label>
   );
 }
@@ -245,7 +257,7 @@ function MainSidebar({ open, store, onNavClose, route, onNavigate, isActive }) {
 function CustomizerSidebar({
   open,
   customTheme, setCustomTheme, isPublishing, publishSuccess,
-  onPublish, onBack,
+  onPublish, onBack, onResetDefaults,
 }) {
   useLiveThemeVars(customTheme);
 
@@ -418,11 +430,129 @@ function CustomizerSidebar({
               <option value="left_aligned">Left aligned</option>
               <option value="centered">Centered</option>
             </select>
-            <ToggleRow
-              label="Stock Counter"
-              value={customTheme.features.enable_stock_counter}
-              onChange={b('features.enable_stock_counter')}
+          </div>
+        </Accordion>
+
+        {/* Section 5: header & navigation */}
+        <Accordion id="header" icon={PanelTop} title="Header & Navigation">
+          <div className="space-y-2">
+            <ToggleRow label="Sticky header" value={customTheme.header.sticky} onChange={b('header.sticky')} />
+            <ToggleRow label="Show search icon" value={customTheme.header.show_search} onChange={b('header.show_search')} />
+            <ToggleRow label="Announcement bar" value={customTheme.header.announcement_enabled} onChange={b('header.announcement_enabled')} />
+            {customTheme.header.announcement_enabled && (
+              <input
+                type="text"
+                value={customTheme.header.announcement_text}
+                onChange={str('header.announcement_text')}
+                placeholder="Announcement message"
+                className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-sm"
+              />
+            )}
+          </div>
+        </Accordion>
+
+        {/* Section 6: footer & social */}
+        <Accordion id="footer" icon={PanelBottom} title="Footer & Social">
+          <div className="space-y-2">
+            <select
+              value={customTheme.footer.columns}
+              onChange={num('footer.columns')}
+              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-sm"
+              aria-label="Footer columns"
+            >
+              <option value={1}>1 column</option>
+              <option value={2}>2 columns</option>
+              <option value={3}>3 columns</option>
+              <option value={4}>4 columns</option>
+            </select>
+            <input
+              type="text"
+              value={customTheme.footer.copyright}
+              onChange={str('footer.copyright')}
+              placeholder="Copyright line"
+              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-sm"
             />
+            <TextAreaRow label="Footer blurb" value={customTheme.footer.blurb} onChange={str('footer.blurb')} rows={2} />
+            <ToggleRow label="Show payment badges" value={customTheme.footer.show_payments} onChange={b('footer.show_payments')} />
+            <ToggleRow label="Show social icons" value={customTheme.footer.show_social} onChange={b('footer.show_social')} />
+            {customTheme.footer.show_social && (
+              <div className="space-y-2 rounded-lg bg-slate-50 p-2.5">
+                <ToggleRow label="Instagram" value={customTheme.social.instagram} onChange={b('social.instagram')} />
+                <ToggleRow label="Facebook" value={customTheme.social.facebook} onChange={b('social.facebook')} />
+                <ToggleRow label="TikTok" value={customTheme.social.tiktok} onChange={b('social.tiktok')} />
+              </div>
+            )}
+          </div>
+        </Accordion>
+
+        {/* Section 7: product page */}
+        <Accordion id="product-page" icon={Package} title="Product Page">
+          <div className="space-y-2">
+            <ToggleRow label="Breadcrumbs" value={customTheme.product_page.breadcrumbs} onChange={b('product_page.breadcrumbs')} />
+            <ToggleRow label="Quantity stepper" value={customTheme.product_page.quantity_stepper} onChange={b('product_page.quantity_stepper')} />
+            <ToggleRow label="Customer reviews" value={customTheme.product_page.reviews} onChange={b('product_page.reviews')} />
+            <ToggleRow label="Related products" value={customTheme.product_page.related_products} onChange={b('product_page.related_products')} />
+          </div>
+        </Accordion>
+
+        {/* Section 8: page content */}
+        <Accordion id="page-content" icon={FileText} title="Page Content">
+          <div className="space-y-2">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">About Us page</p>
+            <input
+              type="text"
+              value={customTheme.pages_content.about_title}
+              onChange={str('pages_content.about_title')}
+              placeholder="About page heading"
+              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-sm"
+            />
+            <TextAreaRow label="About story" value={customTheme.pages_content.about_body} onChange={str('pages_content.about_body')} rows={4} />
+            <p className="pt-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Contact page</p>
+            <input
+              type="email"
+              value={customTheme.pages_content.contact_email}
+              onChange={str('pages_content.contact_email')}
+              placeholder="Contact email"
+              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-sm"
+            />
+            <input
+              type="tel"
+              value={customTheme.pages_content.contact_phone}
+              onChange={str('pages_content.contact_phone')}
+              placeholder="Contact phone"
+              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-sm"
+            />
+            <input
+              type="text"
+              value={customTheme.pages_content.contact_address}
+              onChange={str('pages_content.contact_address')}
+              placeholder="Store address"
+              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-sm"
+            />
+          </div>
+        </Accordion>
+
+        {/* Section 9: advanced */}
+        <Accordion id="advanced" icon={Code2} title="Advanced">
+          <div className="space-y-2">
+            <TextAreaRow
+              label="Additional CSS (scoped to the storefront preview)"
+              value={customTheme.advanced.custom_css}
+              onChange={str('advanced.custom_css')}
+              rows={5}
+              mono
+            />
+            <p className="text-[10px] leading-relaxed text-slate-400">
+              {'Example: .product-card { border: 2px dashed teal; } - rules are namespaced under the preview root, so the dashboard stays untouched.'}
+            </p>
+            <button
+              type="button"
+              onClick={onResetDefaults}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-2 text-xs font-bold text-slate-600 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              <RotateCcw size={13} aria-hidden="true" />
+              Reset all styling to defaults
+            </button>
           </div>
         </Accordion>
       </div>
@@ -516,6 +646,11 @@ export default function DashboardLayout({ children }) {
     window.location.hash = '#/dashboard/themes';
   };
 
+  /* Advanced > Reset: restore every token to schema defaults. */
+  const onResetDefaults = () => {
+    setCustomTheme(normalizeCustomThemeConfig(null));
+  };
+
   const onPublish = async () => {
     setIsPublishing(true);
     setPublishSuccess(false);
@@ -561,6 +696,7 @@ export default function DashboardLayout({ children }) {
           publishSuccess={publishSuccess}
           onPublish={onPublish}
           onBack={onBack}
+          onResetDefaults={onResetDefaults}
         />
       )}
 
