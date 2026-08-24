@@ -11,9 +11,11 @@
  *
  * STRICT RULE: pure SVG / Lucide React icons ONLY - ZERO emojis.
  */
+import { useEffect, useState } from 'react';
 import {
-  ArrowRight, BarChart3, BellRing, Check, Globe, MessageCircle,
-  Package, ShieldCheck, Smartphone, Sparkles, Wallet, Zap,
+  ArrowRight, BarChart3, BellRing, Check, ChevronRight, Globe,
+  Menu, MessageCircle, Package, ShieldCheck, Smartphone, Sparkles,
+  Wallet, X, Zap,
 } from 'lucide-react';
 import { LogoLockup } from '../components/icons.jsx';
 import { PLATFORM_DOMAIN } from '../config.js';
@@ -49,6 +51,23 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
   const start = onStart || (() => {});
   const dashboard = onDashboard || (() => {});
 
+  /* Mobile slide-in site menu (<768px). */
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  /* Escape closes the menu; background scroll locks while it is open. */
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [menuOpen]);
+
   return (
     <div className="min-h-screen bg-white text-charcoal">
       {/* Nav */}
@@ -57,12 +76,25 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
           <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Ghana Stores home">
             <LogoLockup />
           </button>
-          <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-500 md:flex" aria-label="Sections">
+          <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-500 lg:flex" aria-label="Sections">
             {[['features', 'Features'], ['how', 'How it works'], ['stats', 'Why us']].map(([id, label]) => (
               <button key={id} type="button" onClick={() => goTo(id)} className="transition hover:text-charcoal">{label}</button>
             ))}
+            <span className="h-4 w-px bg-slate-200" aria-hidden="true" />
+            <a href="#/about" className="transition hover:text-charcoal">About Us</a>
+            <a href="#/contact" className="transition hover:text-charcoal">Contact Us</a>
           </nav>
           <div className="flex items-center gap-2">
+            {/* Hamburger - mobile site menu */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
+              className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 md:hidden"
+            >
+              <Menu size={22} aria-hidden="true" />
+            </button>
             {!authed && (
               <button type="button" onClick={() => start('login')} className="rounded-xl px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                 Sign in
@@ -286,6 +318,96 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
           (c) {new Date().getFullYear()} Ghana Stores · Built for Ghanaian commerce
         </p>
       </footer>
+
+      {/* Mobile slide-in site menu (<768px) */}
+      <div
+        className={`fixed inset-0 z-50 transition-all duration-300 md:hidden ${menuOpen ? 'visible' : 'invisible pointer-events-none'}`}
+        aria-hidden={!menuOpen}
+      >
+        {/* Scrim - tap to dismiss */}
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Close menu"
+          onClick={() => setMenuOpen(false)}
+          className={`absolute inset-0 bg-slate-950/50 backdrop-blur-sm transition-opacity duration-300 ${
+            menuOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+
+        <aside
+          role="dialog"
+          aria-modal="true"
+          aria-label="Site menu"
+          className={`absolute inset-y-0 right-0 flex w-[300px] max-w-[86vw] flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
+            menuOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <LogoLockup />
+            <button
+              type="button"
+              onClick={() => setMenuOpen(false)}
+              aria-label="Close menu"
+              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              <X size={20} aria-hidden="true" />
+            </button>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Site menu">
+            <p className="px-2 pb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Explore</p>
+            {[['features', 'Features'], ['how', 'How it works'], ['stats', 'Why us']].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => { setMenuOpen(false); goTo(id); }}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-mist hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                {label} <ChevronRight size={15} className="text-slate-300" aria-hidden="true" />
+              </button>
+            ))}
+
+            <p className="px-2 pb-1 pt-5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Company</p>
+            <a href="#/about" onClick={() => setMenuOpen(false)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-mist hover:text-charcoal">
+              About Us <ChevronRight size={15} className="text-slate-300" aria-hidden="true" />
+            </a>
+            <a href="#/contact" onClick={() => setMenuOpen(false)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-mist hover:text-charcoal">
+              Contact Us <ChevronRight size={15} className="text-slate-300" aria-hidden="true" />
+            </a>
+          </nav>
+
+          <div className="space-y-2.5 border-t border-slate-100 p-4">
+            {authed ? (
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); dashboard(); }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
+                Open dashboard <ArrowRight size={15} aria-hidden="true" />
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); start('login'); }}
+                  className="w-full rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600 transition hover:border-slate-300 hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); start('register'); }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                >
+                  Start free trial <ArrowRight size={15} aria-hidden="true" />
+                </button>
+              </>
+            )}
+            <p className="pt-1 text-center text-[10px] font-semibold text-slate-400">14-day free trial · No card required</p>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

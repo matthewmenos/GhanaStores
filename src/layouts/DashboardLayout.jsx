@@ -25,12 +25,13 @@ import {
   Palette, Type, MessageSquare, Layout,
   ChevronLeft, Loader2, Check, Menu, ArrowLeft,
   PanelTop, PanelBottom, Package, FileText, Code2, RotateCcw,
+  PanelLeftClose,
 } from 'lucide-react';
 import { api } from '../api.js';
 import { PLATFORM_DOMAIN, storefrontUrl } from '../config.js';
 import {
   DEFAULT_CUSTOM_THEME_CONFIG, normalizeCustomThemeConfig, seedConfigFromTheme,
-} from '../pages/ThemeCustomizer.jsx';
+} from '../theme/config.js';
 
 /* -------------------------- Sidebar nav config -------------------------- */
 const DASHBOARD_NAV = [
@@ -258,6 +259,8 @@ function MainSidebar({ open, store, onNavClose, route, onNavigate, isActive }) {
 /* ------------------- Mode B: theme customizer sidebar ------------- */
 function CustomizerSidebar({
   open,
+  collapsed,
+  onToggleCollapse,
   customTheme, setCustomTheme, isPublishing, publishSuccess,
   onPublish, onBack, onResetDefaults,
 }) {
@@ -284,25 +287,33 @@ function CustomizerSidebar({
       aria-label="Theme customizer controls"
       className={`${DRAWER_POSITION} h-screen w-[380px] max-w-[92vw] border-r border-gray-200 bg-white text-slate-900 ${
         open ? 'translate-x-0 shadow-2xl' : '-translate-x-full invisible'
-      } md:visible md:w-[380px] md:shadow-none`}
+      } md:visible md:w-[380px] md:shadow-none ${collapsed ? 'lg:hidden' : ''}`}
     >
-      {/* Top control header */}
+      {/* WordPress-style control header */}
       <header className="border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-start justify-between gap-2">
           <button
             type="button"
-            onClick={onBack}
-            className="inline-flex min-w-0 items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-200 hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            onClick={onToggleCollapse}
+            title="Hide controls"
+            aria-label="Hide customizer controls"
+            className="hidden rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:block"
           >
-            <ArrowLeft size={14} aria-hidden="true" />
-            <span className="truncate">Back to Dashboard</span>
+            <PanelLeftClose size={16} aria-hidden="true" />
           </button>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">You are customizing</p>
+            <p className="truncate text-base font-extrabold leading-tight text-charcoal" title={customTheme.branding.site_title}>
+              {customTheme.branding.site_title}
+            </p>
+          </div>
 
           <button
             type="button"
             onClick={onPublish}
             disabled={isPublishing}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
             aria-live="polite"
           >
             {isPublishing ? (
@@ -310,20 +321,27 @@ function CustomizerSidebar({
             ) : publishSuccess ? (
               <Check size={14} aria-hidden="true" />
             ) : null}
-            {isPublishing ? 'Publishing' : publishSuccess ? 'Saved' : 'Publish Changes'}
+            {isPublishing ? 'Publishing' : publishSuccess ? 'Saved' : 'Publish'}
           </button>
         </div>
 
-        <div className="mt-3">
-          <p className="text-sm font-extrabold uppercase tracking-wide text-charcoal">Theme Customizer</p>
-          <p className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+        <div className="mt-2.5 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex min-w-0 items-center gap-1 rounded text-[11px] font-bold text-blue-600 transition hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <ArrowLeft size={12} aria-hidden="true" />
+            <span className="truncate">Back to dashboard</span>
+          </button>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-slate-400">
             <span
               className={`h-1.5 w-1.5 rounded-full ${publishSuccess ? 'bg-emerald-brand' : ''}`}
               style={publishSuccess ? undefined : { background: customTheme.colors.primary }}
               aria-hidden="true"
             />
             {publishSuccess ? 'All changes are live' : 'In sync with storefront'}
-          </p>
+          </span>
         </div>
       </header>
 
@@ -567,6 +585,8 @@ export default function DashboardLayout({ children }) {
     window.location.hash === CUSTOMIZER_ROUTE,
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
+  /* WordPress-style collapse of the customizer control rail (lg+ only). */
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [route, setRoute] = useState(window.location.hash || '#/');
   const [store, setStore] = useState(null);
 
@@ -639,6 +659,15 @@ export default function DashboardLayout({ children }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [drawerOpen]);
 
+  /* WordPress-style collapse: the preview canvas edge handle and the rail
+     chevron both toggle this - hides the control column on lg+ screens so
+     the storefront preview takes the full width. */
+  useEffect(() => {
+    const onToggle = () => setPanelCollapsed((v) => !v);
+    window.addEventListener('gs:customizer-collapse', onToggle);
+    return () => window.removeEventListener('gs:customizer-collapse', onToggle);
+  }, []);
+
   const onNavigate = (hash) => {
     /* The router in App.jsx derives the rendered page from
        window.location.hash via `hashchange` - so navigation REQUIRES a real
@@ -701,6 +730,8 @@ export default function DashboardLayout({ children }) {
       ) : (
         <CustomizerSidebar
           open={drawerOpen}
+          collapsed={panelCollapsed}
+          onToggleCollapse={() => setPanelCollapsed((v) => !v)}
           customTheme={customTheme}
           setCustomTheme={setCustomTheme}
           isPublishing={isPublishing}
