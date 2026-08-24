@@ -84,6 +84,7 @@ export default function AuthScreen({ onAuthed, initialMode = 'register' }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [acceptsTerms, setAcceptsTerms] = useState(false);
   const [form, setForm] = useState({
     name: '', ownerName: '', email: '', phone: '', password: '',
   });
@@ -101,11 +102,21 @@ export default function AuthScreen({ onAuthed, initialMode = 'register' }) {
 
   async function submit(e) {
     e.preventDefault();
+    /* Registration requires explicit consent to the legal documents. */
+    if (mode === 'register' && !acceptsTerms) {
+      setError('Please accept the Terms of Service and Privacy Policy to create your store.');
+      return;
+    }
     setError('');
     setBusy(true);
     try {
       const path = mode === 'register' ? '/api/billing/register' : '/api/billing/login';
-      const data = await api.post(path, form);
+      /* Consent flags ride along on registration (server stores them with
+         the merchant record once its schema gains consent columns). */
+      const payload = mode === 'register'
+        ? { ...form, accepts_terms: true, accepted_at: new Date().toISOString() }
+        : form;
+      const data = await api.post(path, payload);
       setSession(data.token, data.store);
       onAuthed(data.store);
     } catch (err) {
@@ -276,9 +287,29 @@ export default function AuthScreen({ onAuthed, initialMode = 'register' }) {
                 <StrengthMeter password={form.password} />
               </div>
 
+              {/* Required legal consent - registration only */}
+              {mode === 'register' && (
+                <label className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed transition ${
+                  acceptsTerms ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-mist/60'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={acceptsTerms}
+                    onChange={(e) => setAcceptsTerms(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600"
+                  />
+                  <span className="text-slate-500">
+                    I have read and accept the{' '}
+                    <a href="#/terms" target="_blank" rel="noreferrer" className="font-bold text-blue-600 underline decoration-blue-200 hover:text-blue-700">Terms of Service</a>
+                    {' '}and{' '}
+                    <a href="#/privacy" target="_blank" rel="noreferrer" className="font-bold text-blue-600 underline decoration-blue-200 hover:text-blue-700">Privacy Policy</a>, including how my business data is processed.
+                  </span>
+                </label>
+              )}
+
               <button
                 type="submit"
-                disabled={busy}
+                disabled={busy || (mode === 'register' && !acceptsTerms)}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:from-blue-700 hover:to-blue-600 hover:shadow-blue-600/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busy && <IconSpinner size={18} />}

@@ -251,26 +251,36 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
 
       {/* Footer */}
       <footer className="border-t border-slate-900/5 py-10">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 sm:px-6 md:grid-cols-4">
-          <div className="space-y-3 md:col-span-2">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+          <div className="space-y-3">
             <LogoLockup />
             <p className="max-w-xs text-xs leading-relaxed text-slate-400">
               The multi-tenant commerce platform and seller PWA built for Ghanaian merchants - POS, payouts, inventory and storefronts in one place.
             </p>
+            <a href={`https://demo.${PLATFORM_DOMAIN}`} target="_blank" rel="noreferrer" className="inline-block text-xs font-bold text-blue-600 transition hover:text-blue-700">
+              demo.{PLATFORM_DOMAIN}
+            </a>
           </div>
+
           <nav className="space-y-1.5 text-xs font-semibold text-slate-500" aria-label="Product links">
             <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-charcoal">Product</p>
             {[['features', 'Features'], ['how', 'How it works'], ['stats', 'Why us']].map(([id, label]) => (
               <button key={id} type="button" onClick={() => goTo(id)} className="block transition hover:text-charcoal">{label}</button>
             ))}
+            <a href="#/login" className="block transition hover:text-charcoal">Seller login</a>
           </nav>
-          <div className="space-y-1.5 text-xs font-semibold text-slate-500">
-            <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-charcoal">Your storefront</p>
-            <p>demo.{PLATFORM_DOMAIN}</p>
-            <a href={`https://demo.${PLATFORM_DOMAIN}`} target="_blank" rel="noreferrer" className="inline-block text-blue-600 transition hover:text-blue-700">
-              Visit sample store
-            </a>
-          </div>
+
+          <nav className="space-y-1.5 text-xs font-semibold text-slate-500" aria-label="Company links">
+            <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-charcoal">Company</p>
+            <a href="#/about" className="block transition hover:text-charcoal">About Us</a>
+            <a href="#/contact" className="block transition hover:text-charcoal">Contact Us</a>
+          </nav>
+
+          <nav className="space-y-1.5 text-xs font-semibold text-slate-500" aria-label="Legal links">
+            <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-charcoal">Legal</p>
+            <a href="#/terms" className="block transition hover:text-charcoal">Terms of Service</a>
+            <a href="#/privacy" className="block transition hover:text-charcoal">Privacy Policy</a>
+          </nav>
         </div>
         <p className="mx-auto mt-8 max-w-6xl border-t border-slate-900/5 px-4 pt-6 text-[11px] font-medium text-slate-400 sm:px-6">
           (c) {new Date().getFullYear()} Ghana Stores · Built for Ghanaian commerce

@@ -18,6 +18,7 @@ import TrialBanner from './components/TrialBanner.jsx';
 import DashboardLayout from './layouts/DashboardLayout.jsx';
 import AuthScreen from './pages/AuthScreen.jsx';
 import WelcomePage from './pages/WelcomePage.jsx';
+import { AboutPage, ContactPage, PrivacyPage, TermsPage } from './pages/PublicPages.jsx';
 import SellerAnalytics from './pages/SellerAnalytics.jsx';
 import SellerPOS from './pages/SellerPOS.jsx';
 import SellerPayouts from './pages/SellerPayouts.jsx';
@@ -104,15 +105,21 @@ export default function App() {
     }
   }, [route]);
 
-  /* Public web index - open to everyone, no dashboard chrome. */
-  if (route === '#/') {
-    return (
-      <WelcomePage
-        authed={authed}
-        onStart={openAuth}
-        onDashboard={() => { window.location.hash = '#/dashboard'; }}
-      />
-    );
+  /* Public web pages - open to everyone, no dashboard chrome. The index
+     (#/) plus About / Contact / Terms / Privacy stay reachable whether or
+     not a seller is signed in. */
+  const welcomeProps = {
+    authed,
+    onStart: openAuth,
+    onDashboard: () => { window.location.hash = '#/dashboard'; },
+  };
+  switch (route) {
+    case '#/': return <WelcomePage {...welcomeProps} />;
+    case '#/about': return <AboutPage authed={authed} />;
+    case '#/contact': return <ContactPage authed={authed} />;
+    case '#/terms': return <TermsPage authed={authed} />;
+    case '#/privacy': return <PrivacyPage authed={authed} />;
+    default: break;
   }
 
   /* PWA starts from the login page for unauthenticated visitors. */
