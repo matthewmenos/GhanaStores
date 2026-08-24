@@ -166,7 +166,7 @@ router.put('/store/theme', requireSeller, async (req, res, next) => {
 // Realistic Ghanaian sample inventory powering the interactive demo sandbox.
 const DEMO_CATALOG = {
   fashion: [
-    { name: 'Kente Cloth Scarf', price: 180, tagline: 'Handwoven in Bonwire' },
+    { name: 'Kente Cloth Scarf', price: 180, tagline: 'Handwoven artisan weave' },
     { name: 'Ankara Print Dress', price: 250, tagline: 'Bold wax-print cotton' },
     { name: 'Leather Sandals', price: 150, tagline: 'Full-grain local leather' },
     { name: 'Krobo Bead Necklace', price: 80, tagline: 'Recycled glass beads' },
@@ -182,15 +182,15 @@ const DEMO_CATALOG = {
     { name: 'Phone Repair Toolkit', price: 75, tagline: '38-piece precision set' },
   ],
   beauty: [
-    { name: 'Raw Shea Butter 250g', price: 45, tagline: 'Unrefined, Tamale co-op' },
+    { name: 'Raw Shea Butter 250g', price: 45, tagline: 'Unrefined, co-op sourced' },
     { name: 'African Black Soap', price: 18, tagline: 'Plantain ash formula' },
-    { name: 'Coconut Hair Oil 200ml', price: 60, tagline: 'Cold-pressed, Cape Coast' },
+    { name: 'Coconut Hair Oil 200ml', price: 60, tagline: 'Cold-pressed, artisan batch' },
     { name: 'Turmeric Glow Mask', price: 55, tagline: 'Brightening clay blend' },
     { name: 'Aloe Vera Gel 150ml', price: 38, tagline: '99% organic aloe' },
     { name: 'Rosewater Face Toner', price: 42, tagline: 'Alcohol-free hydrating' },
   ],
   marketplace: [
-    { name: 'Carved Wooden Bowl', price: 85, tagline: 'Sese wood, Ahwiaa craft' },
+    { name: 'Carved Wooden Bowl', price: 85, tagline: 'Sese wood, artisan craft' },
     { name: 'Woven Bolga Basket', price: 110, tagline: 'Large market tote' },
     { name: 'Ceramic Mug Set of 4', price: 95, tagline: 'Kiln-fired stoneware' },
     { name: 'Adinkra Wall Art', price: 210, tagline: 'Hand-stamped symbols' },
@@ -219,7 +219,7 @@ function buildSampleItems(category) {
       tagline: item.tagline,
       price,
       compareAtPrice: Math.round(price * 1.25),
-      description: `${item.name} - ${item.tagline}. Quality-checked, packed securely and available for same-day dispatch within Greater Accra.`,
+      description: `${item.name} - ${item.tagline}. Quality-checked, packed securely and available for same-day dispatch nationwide.`,
       imageUrl: `https://picsum.photos/seed/${encodeURIComponent(`${category}-${i + 1}`)}/640/420`,
       rating: Math.round((4.2 + ((i * 7) % 8) / 10) * 10) / 10,
       reviewCount: 12 + i * 9,
@@ -243,7 +243,7 @@ router.get('/themes/demo/:templateId', async (req, res, next) => {
     res.json({
       theme: { id: theme.id, name: theme.name, category: theme.category, config: theme.config },
       sampleItems: buildSampleItems(theme.category),
-      deliveryZones: ['Accra Metro', 'Tema', 'Kasoa', 'Kumasi (next-day)'],
+      deliveryZones: ['Greater Area', 'National Metro', 'Suburban', 'Next-day nationwide'],
       payments: ['MTN MoMo', 'Telecel Cash', 'AirtelTigo Money', 'Cash on Delivery'],
     });
   } catch (err) {

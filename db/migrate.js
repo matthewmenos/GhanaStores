@@ -40,19 +40,19 @@ export const RETAIL_CATEGORIES = [
 
 /** 5 Ghana-inspired color palettes (name + mood + palette tokens). */
 export const PALETTES = [
-  { key: 'accra_midnight', name: 'Accra Midnight',   tag: 'Dark',
+  { key: 'accra_midnight', name: 'Midnight Noir', tag: 'Dark',
     primary: '#0B1120', secondary: '#0F172A', accent: '#FFD700', background: '#FFFFFF',
     textPrimary: '#0B1120', textSecondary: '#475569' },
-  { key: 'kumasi_gold',    name: 'Kumasi Gold',      tag: 'Warm Amber',
+  { key: 'kumasi_gold',    name: 'Golden Hour', tag: 'Warm Amber',
     primary: '#78350F', secondary: '#92400E', accent: '#F59E0B', background: '#FFFBEB',
     textPrimary: '#451A03', textSecondary: '#78350F' },
-  { key: 'osu_emerald',    name: 'Osu Emerald',      tag: 'Tech Green',
+  { key: 'osu_emerald',     name: 'Jade District',  tag: 'Tech Green',
     primary: '#064E35', secondary: '#065F4E', accent: '#10B981', background: '#ECFDF5',
     textPrimary: '#064E35', textSecondary: '#065F4E' },
-  { key: 'volta_pure',     name: 'Volta Pure Light', tag: 'Minimal Blue',
+  { key: 'volta_pure',     name: 'Azure Mist',  tag: 'Minimal Blue',
     primary: '#0C4A6E', secondary: '#0EA5E9', accent: '#0EA5E9', background: '#F0F9FF',
     textPrimary: '#0C4A6E', textSecondary: '#334159' },
-  { key: 'cape_coral',     name: 'Cape Coast Coral', tag: 'Pastel Red',
+  { key: 'cape_coral',     name: 'Coral Blush', tag: 'Pastel Red',
     primary: '#7F1D1D', secondary: '#B91C1C', accent: '#F87171', background: '#FEF2F2',
     textPrimary: '#450A0A', textSecondary: '#7F1D1D' },
 ];
@@ -92,8 +92,8 @@ function heroCopy(categoryFocus) {
     apparel:     ['Express Your Style',       'Handpicked looks for every Ghanaian closet.'],
     tech:        ['Powered by Ghana',         'Latest gadgets, local prices, fast delivery.'],
     beauty:      ['Glow Your Way',            'Beauty that speaks to every skin tone.'],
-    general:     ['One Market, Many Talents', 'From Accra craft to Kumasi textiles - all in one place.'],
-    groceries:   ['Groceries at Your Door',   'Fresh from market, delivered same-day in Accra.'],
+    general:     ['One Market, Many Talents', 'From vibrant craft markets to boutique textiles - all in one place.'],
+    groceries:   ['Groceries at Your Door',   'Fresh from market, delivered same-day nationwide.'],
   };
   return copy[categoryFocus] || ['Welcome', 'Shop our curated collection.'];
 }

@@ -16,8 +16,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Split heavy vendors so app code updates do not bust the framework cache.
-        manualChunks: {
-          react: ['react', 'react-dom'],
+                manualChunks: {
           charts: ['recharts'],
         },
       },
