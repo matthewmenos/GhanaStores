@@ -34,11 +34,12 @@ import {
 
 /* -------------------------- Sidebar nav config -------------------------- */
 const DASHBOARD_NAV = [
-  { hash: '#/',        label: 'Analytics',     icon: IconDashboard },
-  { hash: '#/pos',      label: 'POS Terminal', icon: IconCart },
-  { hash: '#/payouts',  label: 'Payouts',     icon: IconWallet },
-  { hash: '#/inventory',label: 'Inventory',   icon: IconBox },
-  { hash: '#/orders',   label: 'Orders',      icon: IconReceipt },
+  { hash: '#/dashboard',       label: 'Analytics',     icon: IconDashboard },
+  { hash: '#/pos',             label: 'POS Terminal',  icon: IconCart },
+  { hash: '#/payouts',         label: 'Payouts',       icon: IconWallet },
+  { hash: '#/inventory',       label: 'Inventory',     icon: IconBox },
+  { hash: '#/orders',          label: 'Orders',        icon: IconReceipt },
+  { hash: '#/dashboard/themes',label: 'Theme Market',  icon: Palette },
 ];
 
 /** Route that flips the shell into sidebar-replacing customizer mode. */
@@ -580,7 +581,11 @@ export default function DashboardLayout({ children }) {
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
 
-  const isActive = (hash) => route === hash || (hash !== '#/' && route.startsWith(`${hash}/`));
+  /* '#/dashboard' matches exactly only - theme sub-routes belong to
+     Theme Market, not Analytics. */
+  const isActive = (hash) =>
+    route === hash ||
+    (hash !== '#/' && hash !== '#/dashboard' && route.startsWith(`${hash}/`));
 
   useEffect(() => {
     const onChange = () => {

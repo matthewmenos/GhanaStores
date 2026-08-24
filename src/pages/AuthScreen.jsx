@@ -79,8 +79,8 @@ const FEATURES = [
   { Icon: Mail, text: 'WhatsApp orders with PDF receipts' },
 ];
 
-export default function AuthScreen({ onAuthed }) {
-  const [mode, setMode] = useState('register');
+export default function AuthScreen({ onAuthed, initialMode = 'register' }) {
+  const [mode, setMode] = useState(initialMode);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [showPw, setShowPw] = useState(false);
