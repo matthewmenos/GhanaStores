@@ -43,7 +43,7 @@ async function main() {
   const catalog = [
     ['Kente Wrap Dress', 'Handwoven ceremonial dress', 'Apparel', 450,
       [['Size', 'M', null, 14], ['Size', 'L', 465, 9]]],
-    ['Shea Butter Balm 250g', 'Raw Tamale shea blend', 'Beauty', 60,
+        ['Shea Butter Balm 250g', 'Raw, vitamin-rich shea blend', 'Beauty', 60,
       [['Jar', 'Original', null, 40], ['Jar', 'Cocoa', 65, 3]]],
     ['Adinkra Tote Bag', 'Hand-stamped leather tote', 'Accessories', 180,
       [['Colour', 'Brown', null, 7], ['Colour', 'Black', null, 2]]],

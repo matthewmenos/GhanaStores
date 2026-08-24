@@ -18,6 +18,8 @@ import { PLATFORM_DOMAIN } from '../config.js';
 
 const UPDATED = 'August 2026';
 const CONTACT_EMAIL = `hello@${PLATFORM_DOMAIN}`;
+const CONTACT_PHONE_RAW = String(import.meta.env.VITE_PLATFORM_PHONE || '+233 20 123 4567').trim();
+const CONTACT_PHONE_E164 = CONTACT_PHONE_RAW.replace(/\s+/g, '');
 
 /* ------------------------------ Shared shell ------------------------------- */
 function Shell({ authed, children }) {
@@ -146,8 +148,8 @@ export function ContactPage({ authed = false }) {
   const [sent, setSent] = useState(false);
   const cards = [
     { Icon: Mail, label: 'Email us', value: CONTACT_EMAIL, href: `mailto:${CONTACT_EMAIL}` },
-    { Icon: Phone, label: 'Call support', value: '+233 20 123 4567', href: 'tel:+233201234567' },
-    { Icon: MessageCircle, label: 'WhatsApp', value: 'Chat with the team', href: 'https://wa.me/233201234567' },
+        { Icon: Phone, label: 'Call support', value: CONTACT_PHONE_RAW, href: `tel:${CONTACT_PHONE_E164}` },
+    { Icon: MessageCircle, label: 'WhatsApp', value: 'Chat with the team', href: `https://wa.me/${CONTACT_PHONE_E164}` },
   ];
   const inputCls = 'w-full rounded-xl border border-slate-200 bg-mist/60 px-3.5 py-2.5 text-sm transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100';
 

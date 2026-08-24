@@ -75,10 +75,10 @@ export const DEFAULT_CUSTOM_THEME_CONFIG = {
   },
   pages_content: {
     about_title: 'Our Story',
-    about_body: 'From the markets of Accra to your doorstep - we source authentic Ghanaian goods directly from makers and farmers, so every purchase supports local families.',
+    about_body: 'We source authentic, high-quality goods directly from trusted makers and farmers across the country, so every purchase supports local families and communities.',
     contact_email: 'hello@myghanastore.com',
     contact_phone: '+233 20 123 4567',
-    contact_address: '12 Oxford Street, Osu - Accra, Ghana',
+    contact_address: '12 Oxford Street, Osu, Ghana',
   },
   advanced: {
     custom_css: '',
