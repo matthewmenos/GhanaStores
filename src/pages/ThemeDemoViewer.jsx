@@ -10,7 +10,7 @@ import {
   IconTruck, IconShield, IconWallet,
 } from '../components/icons.jsx';
 import {
-  ArrowLeft, Monitor, Smartphone, Tablet, X, BadgeCheck, Star,
+  ArrowLeft, Monitor, Smartphone, Tablet, X, BadgeCheck, Star, Palette,
 } from 'lucide-react';
 
 const CATEGORY_BADGES = {
@@ -347,6 +347,7 @@ export default function ThemeDemoViewer({ templateId }) {
   const [applying, setApplying] = useState(false);
   const [published, setPublished] = useState(false);
   const [toast, setToast] = useState(null);
+  const [isActiveTheme, setIsActiveTheme] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -355,6 +356,15 @@ export default function ThemeDemoViewer({ templateId }) {
       const res = await api.get(`/api/themes/demo/${encodeURIComponent(templateId)}`);
       setData(res);
       setPublished(false);
+      /* Resolve whether this demoed theme is the seller's ACTIVE theme
+         (per requirement: once a theme is active, opening its preview
+         reveals the Customizer button). */
+      try {
+        const mine = await api.get('/api/store/theme');
+        setIsActiveTheme(Boolean(mine?.activeThemeId && mine.activeThemeId === res?.theme?.id));
+      } catch {
+        setIsActiveTheme(false);
+      }
     } catch (e) {
       setLoadError(e.message);
     } finally {
@@ -438,8 +448,17 @@ export default function ThemeDemoViewer({ templateId }) {
             ))}
           </div>
 
-          {/* Right - publish CTA */}
+          {/* Right - publish CTA + customizer */}
           <div className="flex shrink-0 items-center gap-2">
+            {/* Customizer appears only when THIS theme is currently active */}
+            {isActiveTheme && (
+              <a
+                href="#/dashboard/themes/customizer"
+                className="hidden items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-extrabold text-slate-700 shadow-sm transition hover:border-slate-400 hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:flex"
+              >
+                <Palette size={13} /> Customize
+              </a>
+            )}
             {toast && (
               <span
                 role="status"

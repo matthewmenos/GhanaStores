@@ -1,12 +1,15 @@
 /**
  * SellerThemeMarketplace - WordPress-style theme discovery gallery.
+ * The currently ACTIVE theme pins to the front of the grid and gets an
+ * elevated, emerald-accented active card; every other template follows.
+ *
  * STRICT RULE: pure SVG / Lucide icons only, ZERO emojis.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { IconStore, IconCheck, IconAlert } from '../components/icons.jsx';
+import { IconCheck, IconAlert } from '../components/icons.jsx';
 import {
-  Eye, Star, Filter, BadgeCheck, LayoutGrid, Search, X, Palette,
+  BadgeCheck, Eye, Filter, LayoutGrid, Palette, Search, Star, X,
 } from 'lucide-react';
 
 const CATEGORY_LABELS = {
@@ -72,27 +75,37 @@ function ThemeThumb({ palette: p, layout }) {
     </div>
   );
 }
+
 function Stars({ value }) {
   const filled = Math.round(value);
   return (
     <span className="flex items-center gap-0.5" aria-label={`Rated ${value.toFixed(1)} out of 5`}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Star
-          key={n}
-          size={12}
-          className={n <= filled ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}
-        />
+        <Star key={n} size={12} className={n <= filled ? 'fill-amber-400 text-amber-400' : 'text-slate-300'} />
       ))}
     </span>
   );
 }
 
-function ThemeCard({ theme, isActive, isApplying, onApply, onPreview }) {
+function ThemeCard({ theme, isActive, isApplying, onApply, onPreview, isSolo }) {
   const pal = theme.config?.palette || {};
   const rating = themeRating(theme.id);
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/70">
-      <div className="relative aspect-[16/10] overflow-hidden border-b border-slate-100">
+    <article
+      className={`group relative overflow-hidden rounded-2xl border bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70 ${
+        isActive
+          ? 'border-emerald-300 ring-2 ring-emerald-400/70 shadow-lg shadow-emerald-500/10'
+          : 'border-slate-200'
+      }`}
+    >
+      {/* Active theme banner strip */}
+      {isActive && (
+        <div className="flex items-center gap-1.5 bg-emerald-500 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white">
+          <BadgeCheck size={12} /> {isSolo ? 'Your active theme' : 'Active theme'}
+        </div>
+      )}
+
+      <div className={`relative aspect-[16/10] overflow-hidden ${isActive ? '' : 'border-b border-slate-100'}`}>
         <ThemeThumb palette={pal} layout={theme.config?.layout} />
 
         {/* Hover quick-actions - keyboard reachable via focus-within */}
@@ -115,9 +128,9 @@ function ThemeCard({ theme, isActive, isApplying, onApply, onPreview }) {
           </button>
         </div>
 
-        {isActive && (
-          <span className="absolute left-2.5 top-2.5 z-20 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-md">
-            <BadgeCheck size={11} /> Active
+        {!isActive && isApplying && (
+          <span className="absolute left-2.5 top-2.5 z-20 inline-flex items-center gap-1 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-md">
+            <LayoutGrid size={11} /> Applying
           </span>
         )}
       </div>
@@ -131,9 +144,6 @@ function ThemeCard({ theme, isActive, isApplying, onApply, onPreview }) {
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-            <IconStore size={10} /> Official GhanaStores
-          </span>
           <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
             {CATEGORY_LABELS[theme.category] || theme.category}
           </span>
@@ -143,7 +153,7 @@ function ThemeCard({ theme, isActive, isApplying, onApply, onPreview }) {
     </article>
   );
 }
-/** WordPress-style theme marketplace for sellers. */
+
 export default function SellerThemeMarketplace() {
   const [themes, setThemes] = useState([]);
   const [search, setSearch] = useState('');
@@ -182,8 +192,12 @@ export default function SellerThemeMarketplace() {
     } else if (pill !== 'all') {
       list = list.filter((t) => t.category === pill);
     }
-    return list;
-  }, [themes, search, pill]);
+
+    /* Active theme ALWAYS pins to the front, then the rest. */
+    const pinned = list.filter((t) => t.id === activeId);
+    const rest = list.filter((t) => t.id !== activeId);
+    return [...pinned, ...rest];
+  }, [themes, search, pill, activeId]);
 
   async function applyTheme(theme) {
     if (applyingId) return;
@@ -192,7 +206,7 @@ export default function SellerThemeMarketplace() {
     try {
       await api.put('/api/store/theme', { active_theme_id: theme.id });
       setActiveId(theme.id);
-      setFeedback({ ok: true, msg: `"${theme.name}" is now live on your storefront.` });
+      setFeedback({ ok: true, msg: `"${theme.name}" is now your active theme.` });
     } catch (e) {
       setFeedback({ ok: false, msg: e.message });
     } finally {
@@ -203,22 +217,35 @@ export default function SellerThemeMarketplace() {
   function openDemo(theme) {
     window.location.hash = `#/dashboard/themes/demo/${encodeURIComponent(theme.id)}`;
   }
+
+  const activeTheme = themes.find((t) => t.id === activeId);
+  const soloActive = activeTheme && visible.length === 1 && visible[0].id === activeId;
+
   return (
     <div className="min-h-screen space-y-5 bg-slate-100/60 p-4 pb-16 sm:p-6">
-      {/* Hero band */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950 px-5 py-8 text-white sm:px-8 sm:py-10">
         <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-blue-600/20 blur-3xl" aria-hidden="true" />
         <div className="pointer-events-none absolute -bottom-20 left-1/3 h-52 w-52 rounded-full bg-emerald-500/10 blur-3xl" aria-hidden="true" />
 
-        <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-blue-200">
-          <LayoutGrid size={12} /> Theme Marketplace
-        </p>
-        <h1 className="mt-3 max-w-xl text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-          Give your storefront a conversion-ready look
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-slate-300">
-          100+ hand-tuned templates built for Ghanaian shoppers. Preview any theme live, then publish it to your store in one click.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-blue-200">
+              <LayoutGrid size={12} /> Theme Marketplace
+            </p>
+            <h1 className="mt-3 max-w-xl text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+              Give your storefront a conversion-ready look
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-slate-300">
+              Preview any theme live in the sandbox, then make it yours. When a theme is active it stays pinned to the front.
+            </p>
+          </div>
+          <a
+            href="#/dashboard/themes/customizer"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-bold text-charcoal shadow-lg transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            <Palette size={13} /> Open Customizer
+          </a>
+        </div>
 
         <div className="relative mt-6 max-w-xl">
           <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -251,6 +278,11 @@ export default function SellerThemeMarketplace() {
             {label}
           </button>
         ))}
+        {activeId && (
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+            <BadgeCheck size={12} /> Active theme pinned first
+          </span>
+        )}
       </div>
 
       {/* Feedback toast */}
@@ -270,15 +302,14 @@ export default function SellerThemeMarketplace() {
           Showing {visible.length} of {themes.length} templates
           {pill !== 'popular' ? ` - ${FILTER_PILLS.find((p) => p.key === pill)?.label}` : ''}
         </p>
-        <a
-          href="#/dashboard/themes/customizer"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-mist px-3 py-1.5 text-xs font-bold text-charcoal transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        >
-          <Palette size={13} /> Open Customizer
-        </a>
+        {activeTheme && (
+          <p className="hidden items-center gap-1.5 text-xs font-bold text-emerald-700 sm:flex">
+            <BadgeCheck size={13} /> {activeTheme.name} is live on your storefront
+          </p>
+        )}
       </div>
 
-      {/* Template grid */}
+      {/* Template grid - active theme first */}
       {loading ? (
         <div className="flex h-64 items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white text-slate-400">
           <LayoutGrid size={22} className="animate-pulse" />
@@ -304,6 +335,7 @@ export default function SellerThemeMarketplace() {
               theme={t}
               isActive={t.id === activeId}
               isApplying={applyingId === t.id}
+              isSolo={soloActive}
               onApply={applyTheme}
               onPreview={() => openDemo(t)}
             />
@@ -313,3 +345,4 @@ export default function SellerThemeMarketplace() {
     </div>
   );
 }
+/* __M3__ */
