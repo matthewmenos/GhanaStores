@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { IconCheck, IconAlert } from '../components/icons.jsx';
+import { templateToCustomizerTokens } from '../theme/config.js';
 import {
   BadgeCheck, Eye, Filter, LayoutGrid, Palette, Search, Star, X,
 } from 'lucide-react';
@@ -87,7 +88,7 @@ function Stars({ value }) {
   );
 }
 
-function ThemeCard({ theme, isActive, isApplying, onApply, onPreview, isSolo }) {
+function ThemeCard({ theme, isActive, isApplying, onApply, onPreview, onCustomize, isSolo }) {
   const pal = theme.config?.palette || {};
   const rating = themeRating(theme.id);
   return (
@@ -119,12 +120,12 @@ function ThemeCard({ theme, isActive, isApplying, onApply, onPreview, isSolo }) 
           </button>
           <button
             type="button"
-            onClick={() => onApply(theme)}
-            disabled={isActive || isApplying}
+            onClick={() => (isActive ? onCustomize(theme) : onApply(theme))}
+            disabled={!isActive && isApplying}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
-            {isApplying ? <LayoutGrid size={14} className="animate-spin" /> : <IconCheck size={14} />}
-            {isActive ? 'Published' : 'Apply Theme'}
+            {isApplying ? <LayoutGrid size={14} className="animate-spin" /> : isActive ? <Palette size={14} /> : <IconCheck size={14} />}
+            {isApplying ? 'Applying' : isActive ? 'Customize' : 'Apply Theme'}
           </button>
         </div>
 
@@ -218,6 +219,15 @@ export default function SellerThemeMarketplace() {
     window.location.hash = `#/dashboard/themes/demo/${encodeURIComponent(theme.id)}`;
   }
 
+  /* Open the customizer PRE-SEEDED with the given (active) theme's config
+     so it never opens with the default token schema. */
+  function openCustomizer(theme) {
+    window.dispatchEvent(
+      new CustomEvent('gs:open-customizer', { detail: templateToCustomizerTokens(theme) }),
+    );
+    window.location.hash = '#/dashboard/themes/customizer';
+  }
+
   const activeTheme = themes.find((t) => t.id === activeId);
   const soloActive = activeTheme && visible.length === 1 && visible[0].id === activeId;
 
@@ -239,12 +249,13 @@ export default function SellerThemeMarketplace() {
               Preview any theme live in the sandbox, then make it yours. When a theme is active it stays pinned to the front.
             </p>
           </div>
-          <a
-            href="#/dashboard/themes/customizer"
+          <button
+            type="button"
+            onClick={() => (activeTheme ? openCustomizer(activeTheme) : (window.location.hash = '#/dashboard/themes/customizer'))}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-bold text-charcoal shadow-lg transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <Palette size={13} /> Open Customizer
-          </a>
+          </button>
         </div>
 
         <div className="relative mt-6 max-w-xl">
@@ -338,6 +349,7 @@ export default function SellerThemeMarketplace() {
               isSolo={soloActive}
               onApply={applyTheme}
               onPreview={() => openDemo(t)}
+              onCustomize={openCustomizer}
             />
           ))}
         </div>

@@ -116,6 +116,29 @@ export function seedConfigFromTheme(themeConfig) {
   });
 }
 
+/**
+ * Translate a theme TEMPLATE config (the /api/themes shape: palette, hero,
+ * seo, typography, layout, borderRadius) into customizer tokens so the
+ * customizer opens the ACTIVE theme instead of the schema defaults.
+ * Preserves template name; falls back to defaults for anything missing.
+ */
+export function templateToCustomizerTokens(theme) {
+  const cfg = theme?.config || {};
+  return normalizeCustomThemeConfig(
+    seedConfigFromTheme({
+      ...cfg,
+      seo: {
+        ...(cfg.seo || {}),
+        defaultTitle: theme?.name || cfg?.seo?.defaultTitle || DEFAULT_CUSTOM_THEME_CONFIG.branding.site_title,
+      },
+      hero: {
+        ...(cfg.hero || {}),
+        subtitle: cfg?.hero?.subtitle || cfg?.tagline || '',
+      },
+    }),
+  );
+}
+
 /** Immutable write of a dot-path token (returns a new config object). */
 export function setTokenPath(config, path, value) {
   const next = JSON.parse(JSON.stringify(config));

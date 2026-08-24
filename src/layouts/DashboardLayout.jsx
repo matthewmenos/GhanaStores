@@ -659,6 +659,23 @@ export default function DashboardLayout({ children }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [drawerOpen]);
 
+  /* When the marketplace / demo viewer asks to customize the ACTIVE theme,
+     pre-seed the working copy from that theme's config before opening the
+     rail (requirement: customizer opens the active theme, not defaults). */
+  useEffect(() => {
+    const onOpenCustomizer = (e) => {
+      if (e?.detail) {
+        const seeded = normalizeCustomThemeConfig(e.detail);
+        setCustomTheme(seeded);
+        localStorage.setItem('gs_custom_theme', JSON.stringify(seeded));
+      }
+      setDrawerOpen(false);
+      setIsCustomizerOpen(true);
+    };
+    window.addEventListener('gs:open-customizer', onOpenCustomizer);
+    return () => window.removeEventListener('gs:open-customizer', onOpenCustomizer);
+  }, []);
+
   /* WordPress-style collapse: the preview canvas edge handle and the rail
      chevron both toggle this - hides the control column on lg+ screens so
      the storefront preview takes the full width. */

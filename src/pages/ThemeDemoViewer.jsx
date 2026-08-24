@@ -12,6 +12,7 @@ import {
 import {
   ArrowLeft, Monitor, Smartphone, Tablet, X, BadgeCheck, Star, Palette,
 } from 'lucide-react';
+import { templateToCustomizerTokens } from '../theme/config.js';
 
 const CATEGORY_BADGES = {
   fashion: 'Fashion & Apparel',
@@ -400,6 +401,22 @@ export default function ThemeDemoViewer({ templateId }) {
     return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
   }
 
+  /* Open the customizer pre-seeded with the ACTIVE theme (the one being
+     previewed), never the default schema. */
+  function openCustomizer() {
+    const theme = data?.theme;
+    if (!theme) {
+      window.location.hash = '#/dashboard/themes/customizer';
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent('gs:open-customizer', {
+        detail: templateToCustomizerTokens({ name: theme.name, config: theme.config }),
+      }),
+    );
+    window.location.hash = '#/dashboard/themes/customizer';
+  }
+
   const vp = VIEWPORTS.find((v) => v.key === viewport) || VIEWPORTS[0];
   const cfg = data?.theme?.config || {};
 
@@ -452,12 +469,13 @@ export default function ThemeDemoViewer({ templateId }) {
           <div className="flex shrink-0 items-center gap-2">
             {/* Customizer appears only when THIS theme is currently active */}
             {isActiveTheme && (
-              <a
-                href="#/dashboard/themes/customizer"
+              <button
+                type="button"
+                onClick={openCustomizer}
                 className="hidden items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-extrabold text-slate-700 shadow-sm transition hover:border-slate-400 hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:flex"
               >
                 <Palette size={13} /> Customize
-              </a>
+              </button>
             )}
             {toast && (
               <span
