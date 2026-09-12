@@ -28,6 +28,7 @@ import SellerThemeSelector from './pages/SellerThemeSelector.jsx';
 import SellerThemeMarketplace from './pages/SellerThemeMarketplace.jsx';
 import ThemeDemoViewer from './pages/ThemeDemoViewer.jsx';
 import ThemeCustomizer from './pages/ThemeCustomizer.jsx';
+import DomainManager from './pages/DomainManager.jsx';
 
 const LOGIN_HASH = '#/login';
 
@@ -101,6 +102,7 @@ export default function App() {
       case '#/themes': return <SellerThemeSelector />;
       case '#/dashboard/themes': return <SellerThemeMarketplace />;
       case '#/dashboard/themes/customizer': return <ThemeCustomizer chromeless />;
+      case '#/domains': return <DomainManager subdomain={store?.subdomain_slug} storeId={store?.id} />;
       default: return <SellerAnalytics />;
     }
   }, [route]);

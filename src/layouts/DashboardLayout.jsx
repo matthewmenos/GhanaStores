@@ -25,7 +25,7 @@ import {
   Palette, Type, MessageSquare, Layout,
   ChevronLeft, Loader2, Check, Menu, ArrowLeft,
   PanelTop, PanelBottom, Package, FileText, Code2, RotateCcw,
-  PanelLeftClose,
+  PanelLeftClose, Globe,
 } from 'lucide-react';
 import { api } from '../api.js';
 import { PLATFORM_DOMAIN, storefrontUrl } from '../config.js';
@@ -41,6 +41,7 @@ const DASHBOARD_NAV = [
   { hash: '#/inventory',       label: 'Inventory',     icon: IconBox },
   { hash: '#/orders',          label: 'Orders',        icon: IconReceipt },
   { hash: '#/dashboard/themes',label: 'Theme Market',  icon: Palette },
+  { hash: '#/domains',         label: 'Domains',       icon: Globe },
 ];
 
 /** Route that flips the shell into sidebar-replacing customizer mode. */

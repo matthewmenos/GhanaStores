@@ -6,7 +6,7 @@
  * STRICT RULE: pure SVG / Lucide React icons ONLY - ZERO emojis.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, ghs } from '../api.js';
+import { api, getCachedStore, ghs } from '../api.js';
 import {
   CheckCircle2, ChevronRight, Copy, CreditCard, ExternalLink,
   Globe, Link2, Loader2, RefreshCw, Search, ShoppingCart,
@@ -109,7 +109,7 @@ function PrimaryDomainCard({ subdomain }) {
  * Tab 1: Connect Existing Domain (BYOD)
  * ========================================================================= */
 
-function ConnectExistingTab() {
+function ConnectExistingTab({ storeId = null }) {
   const [domainInput, setDomainInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -127,7 +127,7 @@ function ConnectExistingTab() {
     if (!isValidFormat) { setError('Enter a valid domain, e.g. mybrand.com or www.mybrand.com'); return; }
     setBusy(true);
     try {
-      const res = await api.post('/api/domains/connect-existing', { domainName: domainInput.trim() });
+      const res = await api.post('/api/domains/connect-existing', { domainName: domainInput.trim(), ...(storeId ? { storeId } : {}) });
       setResult(res);
     } catch (err) {
       setError(err.message || 'Failed to connect domain.');
@@ -245,7 +245,7 @@ function ConnectExistingTab() {
  * Hubtel Checkout Drawer (Flow B)
  * ========================================================================= */
 
-function HubtelCheckoutDrawer({ domain, priceGhs, onClose }) {
+function HubtelCheckoutDrawer({ domain, priceGhs, storeId = null, onClose }) {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -258,7 +258,7 @@ function HubtelCheckoutDrawer({ domain, priceGhs, onClose }) {
     setBusy(true);
     try {
       const res = await api.post('/api/domains/buy/initialize-hubtel', {
-        amountGhs: priceGhs, domainName: domain, customerPhone: phone, customerEmail: email,
+        amountGhs: priceGhs, domainName: domain, customerPhone: phone, customerEmail: email, ...(storeId ? { storeId } : {}),
       });
       if (res.checkoutUrl) { window.location.href = res.checkoutUrl; }
       else { setError('Payment gateway did not return a checkout URL.'); }
@@ -345,7 +345,7 @@ function HubtelCheckoutDrawer({ domain, priceGhs, onClose }) {
  * Tab 2: Buy New Domain
  * ========================================================================= */
 
-function BuyNewDomainTab() {
+function BuyNewDomainTab({ storeId = null }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searched, setSearched] = useState(false);
@@ -357,8 +357,7 @@ function BuyNewDomainTab() {
   async function handleSearch(e) {
     e.preventDefault();
     if (!searchQuery.trim() || searchQuery.trim().length < 2) { setSearchError('Enter at least 2 characters to search.'); return; }
-    setSearching(true); setSearchError(''); setSearched(false);
-    try {
+      try {
       const res = await api.get(`/api/domains/search?query=${encodeURIComponent(searchQuery.trim())}`);
       setResults(res.results || []); setSearched(true);
     } catch (err) { setSearchError(err.message || 'Search failed.'); }
@@ -389,8 +388,6 @@ function BuyNewDomainTab() {
 
             {results.map((r) => (
               <div key={r.domain} className="flex items-center justify-between px-5 py-3.5 transition hover:bg-mist/50">
-                <div className="flex items-center gap-3">
-                  <Globe size={15} className={r.available ? 'text-emerald-500' : 'text-slate-300'} aria-hidden="true" />
                   <div>
                     <span className="text-sm font-semibold text-charcoal">{r.domain}</span>
                     <div className="mt-0.5">
@@ -401,7 +398,6 @@ function BuyNewDomainTab() {
                       )}
                     </div>
                   </div>
-                </div>
                 <div className="flex items-center gap-3">
                   {r.available && <span className="text-sm font-bold text-charcoal">{ghs(r.priceGhs)}<span className="text-[10px] font-normal text-slate-400"> / yr</span></span>}
                   {r.available ? (
@@ -418,7 +414,7 @@ function BuyNewDomainTab() {
           </div>
         </Card>
       )}
-      {checkoutDomain && <HubtelCheckoutDrawer domain={checkoutDomain} priceGhs={checkoutPrice} onClose={() => setCheckoutDomain(null)} />}
+      {checkoutDomain && <HubtelCheckoutDrawer domain={checkoutDomain} priceGhs={checkoutPrice} storeId={storeId} onClose={() => setCheckoutDomain(null)} />}
     </div>
   );
 }
@@ -427,8 +423,9 @@ function BuyNewDomainTab() {
  * Main DomainManager Component
  * ========================================================================= */
 
-export default function DomainManager({ subdomain = 'my-store' }) {
+export default function DomainManager({ subdomain = 'my-store', storeId = null }) {
   const [activeTab, setActiveTab] = useState('connect');
+  const resolvedStoreId = storeId ?? getCachedStore()?.id ?? null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
@@ -449,8 +446,8 @@ export default function DomainManager({ subdomain = 'my-store' }) {
           <ShoppingCart size={15} aria-hidden="true" /> Buy New Domain
         </button>
       </div>
-      {activeTab === 'connect' && <ConnectExistingTab />}
-      {activeTab === 'buy' && <BuyNewDomainTab />}
+      {activeTab === 'connect' && <ConnectExistingTab storeId={resolvedStoreId} />}
+      {activeTab === 'buy' && <BuyNewDomainTab storeId={resolvedStoreId} />}
     </div>
   );
 }
