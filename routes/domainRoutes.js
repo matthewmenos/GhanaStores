@@ -247,5 +247,191 @@ router.get('/caddy-ask', async (req, res) => {
   }
 });
 
+/* =========================================================================
+ * Unified Domain Acquisition Routes (Flow A + Flow B)
+ * ========================================================================= */
+
+import * as domainService from '../services/domainService.js';
+
+/* --- Flow A: Connect Existing Domain (BYOD) --- */
+
+router.post('/connect-existing', requireSeller, async (req, res, next) => {
+  try {
+    const domainName = String(req.body?.domainName || '').trim();
+    if (!domainName) {
+      return res.status(400).json({ error: 'domainName is required.' });
+    }
+    if (!DOMAIN_RE.test(domainName)) {
+      return res.status(400).json({ error: 'Enter a valid domain name, e.g. mybrand.com' });
+    }
+
+    const result = await domainService.connectExistingDomain({
+      storeId: req.auth.sub,
+      domainName,
+    });
+
+    await query(
+      `INSERT INTO store_domains (store_id, domain_name, provider, status, custom_hostname_id, dns_target_a, dns_target_cname, verification_errors)
+       VALUES ($1, $2, 'EXTERNAL', $3, $4, $5, $6, $7)
+       ON CONFLICT (LOWER(domain_name)) DO UPDATE SET
+         status = EXCLUDED.status,
+         custom_hostname_id = EXCLUDED.custom_hostname_id,
+         updated_at = NOW()
+       RETURNING id`,
+      [
+        req.auth.sub,
+        result.domainName,
+        result.status,
+        result.customHostnameId || null,
+        result.dnsTarget?.aRecord || null,
+        result.dnsTarget?.cnameRecord || null,
+        JSON.stringify(result.verificationErrors || []),
+      ],
+    );
+
+    return res.json({
+      success: true,
+      domainName: result.domainName,
+      status: result.status,
+      customHostnameId: result.customHostnameId,
+      dnsTarget: result.dnsTarget,
+      verificationErrors: result.verificationErrors,
+      dryRun: result.dryRun || false,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* --- Flow A: Verify Status & List --- */
+
+router.get('/verify-status', requireSeller, async (req, res, next) => {
+  try {
+    const domainName = String(req.query.domain || '').trim();
+    if (!domainName) {
+      return res.status(400).json({ error: 'domain query parameter is required.' });
+    }
+
+    const result = await domainService.verifyDomainStatus(domainName);
+
+    if (result.status) {
+      await query(
+        `UPDATE store_domains SET status = $1, ssl_status = $2, verification_errors = $3, updated_at = NOW()
+         WHERE store_id = $4 AND LOWER(domain_name) = LOWER($5)`,
+        [
+          result.status,
+          result.ssl?.status || null,
+          JSON.stringify(result.verificationErrors || []),
+          req.auth.sub,
+          result.domainName,
+        ],
+      );
+    }
+
+    return res.json({
+      domainName: result.domainName,
+      status: result.status,
+      ssl: result.ssl || null,
+      verificationErrors: result.verificationErrors || [],
+      dryRun: result.dryRun || false,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/list', requireSeller, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT id, domain_name, provider, status, ssl_status, custom_hostname_id,
+              dns_target_a, dns_target_cname, price_paid_ghs, registered_at, created_at, updated_at
+         FROM store_domains
+        WHERE store_id = $1
+        ORDER BY created_at DESC`,
+      [req.auth.sub],
+    );
+    return res.json({ domains: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* --- Flow B: Buy New Domain (Openprovider + Hubtel) --- */
+
+router.get('/search', requireSeller, async (req, res, next) => {
+  try {
+    const queryParam = String(req.query.query || '').trim();
+    if (!queryParam) {
+      return res.status(400).json({ error: 'query parameter is required.' });
+    }
+    const results = await domainService.searchDomains(queryParam);
+    return res.json({ query: queryParam, results });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/buy/initialize-hubtel', requireSeller, async (req, res, next) => {
+  try {
+    const { amountGhs, domainName, customerPhone, customerEmail } = req.body || {};
+    if (!domainName || !amountGhs || !customerPhone) {
+      return res.status(400).json({ error: 'domainName, amountGhs, and customerPhone are required.' });
+    }
+
+    const result = await domainService.initializeHubtelCheckout({
+      amountGhs: Number(amountGhs),
+      domainName,
+      customerPhone,
+      customerEmail: customerEmail || req.store?.email || '',
+      storeId: req.auth.sub,
+    });
+
+    // Pre-create store_domains record with pending status
+    await query(
+      `INSERT INTO store_domains (store_id, domain_name, provider, status, purchase_reference)
+       VALUES ($1, $2, 'PURCHASED', 'PENDING_DNS', $3)
+       ON CONFLICT (LOWER(domain_name)) DO NOTHING`,
+      [req.auth.sub, domainName, result.reference],
+    );
+
+    return res.json({
+      success: true,
+      checkoutUrl: result.checkoutUrl,
+      checkoutId: result.checkoutId,
+      reference: result.reference,
+      dryRun: result.dryRun || false,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
+export { router as domainRouter };
+
+/** Standalone webhook router — mounted at /api/webhooks in server.js */
+import { Router as WebhookRouter } from 'express';
+export const webhookRouter = WebhookRouter();
+webhookRouter.post('/hubtel', async (req, res) => {
+  try {
+    const result = await domainService.handleHubtelWebhook(req.body || {});
+
+    if (result.processed && result.domainName) {
+      await query(
+        `UPDATE store_domains SET status = 'ACTIVE', registered_at = NOW(), updated_at = NOW()
+         WHERE store_id = $1 AND LOWER(domain_name) = LOWER($2)`,
+        [result.storeId, result.domainName],
+      );
+      await query(
+        'UPDATE stores SET custom_domain = $1 WHERE id = $2',
+        [result.domainName, result.storeId],
+      );
+    }
+
+    return res.json({ received: true, processed: result.processed });
+  } catch (err) {
+    console.error('[domain] webhook handler error:', err.message);
+    return res.status(200).json({ received: true, processed: false });
+  }
+});
 

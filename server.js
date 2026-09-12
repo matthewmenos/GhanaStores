@@ -33,6 +33,7 @@ import payoutRoutes from './routes/payoutRoutes.js';
 import whatsappInvoiceRoutes, { whatsappRouter } from './routes/whatsappInvoiceRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
 import domainRoutes from './routes/domainRoutes.js';
+import { webhookRouter } from './routes/domainRoutes.js';
 import billingCronRoute from './routes/billingCronRoute.js';
 import themeRoutes from './routes/themeRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
@@ -84,6 +85,8 @@ app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/cron', billingCronRoute);
+// Hubtel payment webhook — must be at /api/webhooks/hubtel (called by Hubtel infra)
+app.use('/api/webhooks', webhookRouter);
 // Theme catalog + storefront theme management (mounted at /api so that
 // /api/themes and /api/store/theme/* resolve as written).
 app.use('/api', themeRoutes);

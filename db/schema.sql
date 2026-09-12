@@ -182,4 +182,28 @@ CREATE TABLE IF NOT EXISTS platform_admins (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ------------------------------------------------------------ store domains (Module 7)
+CREATE TABLE IF NOT EXISTS store_domains (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id            UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  domain_name         TEXT NOT NULL,
+  provider            TEXT NOT NULL DEFAULT 'EXTERNAL'
+                        CHECK (provider IN ('EXTERNAL','PURCHASED')),
+  status              TEXT NOT NULL DEFAULT 'PENDING_DNS'
+                        CHECK (status IN ('PENDING_DNS','ACTIVE','FAILED','CANCELLED')),
+  custom_hostname_id  TEXT,
+  ssl_status          TEXT DEFAULT 'pending',
+  dns_target_a        TEXT,
+  dns_target_cname    TEXT,
+  price_paid_ghs      NUMERIC(10,2),
+  purchase_reference  TEXT,
+  verification_errors JSONB DEFAULT '[]'::jsonb,
+  registered_at       TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS store_domains_name_idx ON store_domains (LOWER(domain_name));
+CREATE INDEX IF NOT EXISTS store_domains_store_idx ON store_domains (store_id, status);
+CREATE INDEX IF NOT EXISTS store_domains_status_idx ON store_domains (status, created_at DESC);
+
 
