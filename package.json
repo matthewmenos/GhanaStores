@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "start": "NODE_ENV=production node server.js",
     "db:init": "node scripts/dbInit.js",
+    "db:reset": "node scripts/dbReset.js",
     "db:migrate": "node db/migrate.js",
     "db:seed": "node scripts/dbSeed.js",
     "admin:create": "node scripts/createAdmin.js",

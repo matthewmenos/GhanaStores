@@ -8,6 +8,10 @@ a storefront on a subdomain or custom domain, manage multi-variant inventory,
 sell in-store or online, accept Mobile Money and cash, and cash out instantly
 via MTN, Telecel/Vodafone or AT Money.
 
+- `db/fresh.sql` is the single canonical fresh-install schema and the only SQL file in the repository.
+- `npm run db:reset` is destructive and refuses to run unless `RESET_DATABASE=yes` is set.
+- Apply the schema to a new Neon database, then run `npm run db:migrate` to seed the 100 theme templates.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -26,7 +30,10 @@ via MTN, Telecel/Vodafone or AT Money.
 ```bash
 npm install            # install all dependencies
 cp .env.example .env   # then edit values (see below)
-npm run db:init        # apply db/schema.sql to your database
+# Fresh database (destructive):
+RESET_DATABASE=yes npm run db:reset
+npm run db:init        # apply the single canonical db/fresh.sql
+npm run db:migrate     # add/seed the 100 theme templates
 npm run db:seed        # optional demo store + catalog + orders
 node server.js         # API on http://localhost:4000
 npm run dev            # seller PWA on http://localhost:5173
@@ -79,8 +86,9 @@ services/
   smsService.js               Arkesel templates (welcome, trial, payout, stock)
   pdfService.js               PDFKit receipt with QR code
 jobs/billingCron.js           Day 11 reminder / Day 14 PAST_DUE / Day 17 suspend
-db/schema.sql                 Tables, indexes, auto-trial trigger
-scripts/dbInit.js             Schema applier (npm run db:init)
+db/fresh.sql                 Single canonical schema, tables, indexes, trigger
+scripts/dbInit.js             Fresh schema applier (npm run db:init)
+scripts/dbReset.js            Guarded destructive reset (npm run db:reset)
 scripts/dbSeed.js             Demo data (npm run db:seed)
 scripts/e2eTest.js            Full 37-assertion end-to-end suite
 src/                          React PWA (pages, components, SVG icons)

@@ -1,7 +1,7 @@
 -- ============================================================
 -- DIDWA - Neon PostgreSQL Schema
 -- Row-Level Multi-Tenancy: every tenant table carries store_id.
--- Apply with: npm run db:init   (or psql -f db/schema.sql)
+-- Apply with: npm run db:init   (or psql -f db/fresh.sql)
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -173,13 +173,32 @@ CREATE TABLE IF NOT EXISTS order_items (
   total_price    NUMERIC(12,2) NOT NULL DEFAULT 0,
   quantity       INTEGER NOT NULL CHECK (quantity > 0),
   line_total     NUMERIC(12,2) NOT NULL
--- Existing deployments may have the legacy order_items shape.
-ALTER TABLE order_items
-  ADD COLUMN IF NOT EXISTS product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS total_price NUMERIC(12,2) NOT NULL DEFAULT 0;
-
 );
 CREATE INDEX IF NOT EXISTS order_items_order_idx ON order_items (order_id);
+
+-- ------------------------------------------------------------ low-stock alert audit
+CREATE TABLE IF NOT EXISTS product_restock_alerts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id        UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  variant_id      UUID NOT NULL REFERENCES product_variants(id) ON DELETE CASCADE,
+  stock_quantity  INTEGER NOT NULL,
+  reorder_level   INTEGER NOT NULL,
+  triggered_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_restock_alerts_store
+  ON product_restock_alerts (store_id, triggered_at DESC);
+
+-- ------------------------------------------------------------ theme architecture
+CREATE TABLE IF NOT EXISTS theme_templates (
+  id          VARCHAR(100) PRIMARY KEY,
+  name        VARCHAR(100) NOT NULL,
+  category    VARCHAR(50)  NOT NULL,
+  config      JSONB        NOT NULL,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+ALTER TABLE stores
+  ADD COLUMN IF NOT EXISTS active_theme_id VARCHAR(100) REFERENCES theme_templates(id),
+  ADD COLUMN IF NOT EXISTS custom_theme_config JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- ------------------------------------------------------------ payouts (Module 3)
 CREATE TABLE IF NOT EXISTS payouts (
@@ -313,3 +332,5 @@ CREATE INDEX IF NOT EXISTS store_domains_store_idx ON store_domains (store_id, s
 CREATE INDEX IF NOT EXISTS store_domains_status_idx ON store_domains (status, created_at DESC);
 
 
+
+-- Canonical DiDwa fresh-install schema; supplemental historical SQL is not executed.

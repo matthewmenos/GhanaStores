@@ -1,5 +1,6 @@
 /**
- * Apply db/schema.sql to the configured database (Neon or local Postgres).
+ * Apply the single canonical db/fresh.sql schema to the configured database
+ * (Neon or local Postgres).
  * Usage: npm run db:init
  */
 import fs from 'node:fs';
@@ -11,11 +12,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Schema + supplemental modules, applied in dependency order.
+// Single canonical schema for fresh deployments. No supplemental SQL files are
+// executed during initialization.
 const schemaFiles = [
-  path.join(__dirname, '..', 'db', 'schema.sql'),
-  path.join(__dirname, '..', 'db', 'variants_and_alerts.sql'),
-  path.join(__dirname, '..', 'sql', 'orders_schema.sql'),
+  path.join(__dirname, '..', 'db', 'fresh.sql'),
 ];
 
 const connectionString = process.env.DATABASE_URL || '';
