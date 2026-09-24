@@ -6,11 +6,11 @@
  * deployments only change one value - mirroring the API's PLATFORM_DOMAIN.
  *
  * Accepted shapes for VITE_PLATFORM_DOMAIN:
- *   ghastores.com              -> https://<slug>.ghastores.com
+ *   didwaghana.com              -> https://<slug>.didwaghana.com
  *   https://mybrand.com        -> https://<slug>.mybrand.com
  *   http://lvh.me:5173         -> http://<slug>.lvh.me:5173  (local dev)
  */
-const RAW = String(import.meta.env.VITE_PLATFORM_DOMAIN || 'ghastores.com').trim();
+const RAW = String(import.meta.env.VITE_PLATFORM_DOMAIN || 'didwaghana.com').trim();
 const SCHEME = /^http:\/\//i.test(RAW) ? 'http' : 'https';
 
 /** Apex/platform domain without protocol or trailing slashes. */

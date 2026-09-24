@@ -1,5 +1,5 @@
 /**
- * Ghana Stores PWA bootstrap.
+ * DiDwa PWA bootstrap.
  * Hash routing keeps deep links working on static hosts without rewrites.
  */
 import React from 'react';

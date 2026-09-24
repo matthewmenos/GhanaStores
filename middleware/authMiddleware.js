@@ -1,12 +1,12 @@
 /**
- * Ghana Stores - JWT Authentication Middleware
+ * DiDwa - JWT Authentication Middleware
  * Issues and verifies tokens for SELLER (store owner) and ADMIN (platform)
  * roles, and enforces tenant scoping + store status guards.
  */
 import jwt from 'jsonwebtoken';
 import { query } from '../config/database.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ghana-stores-dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'didwa-dev-secret';
 const TOKEN_TTL = '7d';
 
 /* ---------------------------------- Issue ---------------------------------- */

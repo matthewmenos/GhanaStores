@@ -1,5 +1,5 @@
 -- ============================================================
--- GHANA STORES - Neon PostgreSQL Schema
+-- DIDWA - Neon PostgreSQL Schema
 -- Row-Level Multi-Tenancy: every tenant table carries store_id.
 -- Apply with: npm run db:init   (or psql -f db/schema.sql)
 -- ============================================================
@@ -149,6 +149,10 @@ CREATE TABLE IF NOT EXISTS payouts (
   amount         NUMERIC(12,2) NOT NULL CHECK (amount > 0),
   destination    TEXT NOT NULL,                       -- MoMo number 233...
   network        TEXT NOT NULL CHECK (network IN ('MTN','VODAFONE','AT')),
+  provider       TEXT NOT NULL DEFAULT 'HUBTEL'
+                   CHECK (provider IN ('MTN','HUBTEL')),
+  fallback_used  BOOLEAN NOT NULL DEFAULT FALSE,      -- TRUE when Hubtel retried after MTN
+  mtn_status     TEXT,                                -- last MTN leg status before fallback
   status         TEXT NOT NULL DEFAULT 'APPROVED'
                    CHECK (status IN ('APPROVED','PENDING_REVIEW','FAILED')),
   reference      TEXT,
@@ -157,6 +161,16 @@ CREATE TABLE IF NOT EXISTS payouts (
   completed_at   TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS payouts_store_idx ON payouts (store_id, initiated_at DESC);
+
+-- 2-way payments: record which provider moved each payout (existing
+-- deployments gain the columns via ADD COLUMN below; fresh installs get
+-- them inline above).
+ALTER TABLE payouts
+  ADD COLUMN IF NOT EXISTS provider      TEXT NOT NULL DEFAULT 'HUBTEL'
+    CHECK (provider IN ('MTN','HUBTEL')),
+  ADD COLUMN IF NOT EXISTS fallback_used BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS mtn_status    TEXT;
+
 
 -- MODULE 4: cash collected by dispatch riders while in transit.
 CREATE TABLE IF NOT EXISTS rider_transits (

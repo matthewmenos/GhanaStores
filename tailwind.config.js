@@ -1,4 +1,4 @@
-/** Tailwind CSS v3 configuration - Ghana Stores design tokens. */
+/** Tailwind CSS v3 configuration - DiDwa design tokens. */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {

@@ -1,5 +1,5 @@
 /**
- * GHANA STORES - Root Express Application
+ * DIDWA - Root Express Application
  * Multi-tenant e-commerce platform & seller PWA API for Ghana (GHS).
  *
  * Dual-mode boot:
@@ -65,11 +65,11 @@ app.use(resolveTenantStore);
 app.get('/health', async (_req, res) => {
   try {
     const now = await pingDb();
-    res.json({ ok: true, service: 'ghana-stores-api', db: 'connected', at: now.now });
+    res.json({ ok: true, service: 'didwa-api', db: 'connected', at: now.now });
   } catch {
     res.status(503).json({
       ok: false,
-      service: 'ghana-stores-api',
+      service: 'didwa-api',
       db: 'unreachable',
       hint: 'Set DATABASE_URL and apply db/schema.sql (npm run db:init).',
     });
@@ -121,7 +121,7 @@ const invokedDirectly = Boolean(process.argv[1]) &&
 
 if (invokedDirectly && !ON_VERCEL) {
   app.listen(PORT, () => {
-    console.log(`Ghana Stores API listening on port ${PORT}`);
+    console.log(`DiDwa API listening on port ${PORT}`);
   });
 
   // Boot-time connectivity check is informational only - the API stays up so

@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - PDF Receipt Generator
+ * DiDwa - PDF Receipt Generator
  * PDFKit-based branded invoices with embedded QR verification codes.
  * (Puppeteer is intentionally avoided: PDFKit is far lighter and needs no
  * Chromium binary download, keeping deploys fast on small VPS instances.)
@@ -46,7 +46,7 @@ export function buildOrderReceiptPdf(order) {
 
       /* ---- QR verification code ---- */
       const qrPayload = order.verify_url ||
-        `${process.env.PLATFORM_URL || 'https://ghastores.com'}/verify/${order.id}`;
+        `${process.env.PLATFORM_URL || 'https://didwaghana.com'}/verify/${order.id}`;
       try {
         const qrBuf = await QRCode.toBuffer(qrPayload, { margin: 1, width: 220 });
         const qrX = 56;
@@ -60,7 +60,7 @@ export function buildOrderReceiptPdf(order) {
 
       /* ---- Footer ---- */
       doc.font('Helvetica').fontSize(8).fillColor('#94A3B8')
-        .text('This receipt was generated electronically by Ghana Stores and is valid without signature.',
+        .text('This receipt was generated electronically by DiDwa and is valid without signature.',
           48, doc.page.height - 64, { align: 'center', width: doc.page.width - 96 });
 
       doc.end();
@@ -75,15 +75,16 @@ export function buildOrderReceiptPdf(order) {
 function drawHeader(doc, store) {
   doc.rect(0, 0, doc.page.width, 118).fill(BRAND_BLUE);
   doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(22)
-    .text(safe(store.name) || 'Ghana Stores Store', 48, 34);
+    .text(safe(store.name) || 'DiDwa Store', 48, 34);
   doc.font('Helvetica').fontSize(9.5).fillColor('#DBEAFE');
+  const platformDomain = (process.env.PLATFORM_DOMAIN || 'didwaghana.com').replace(/^https?:\/\//, '');
   const contact = [
-    store.subdomain_slug ? `${store.subdomain_slug}.ghastores.com` : null,
+    store.subdomain_slug ? `${store.subdomain_slug}.${platformDomain}` : null,
     store.phone ? `Tel: ${safe(store.phone)}` : null,
     store.momo_number ? `MoMo: ${safe(store.momo_number)}` : null,
   ].filter(Boolean).join('   |   ');
   if (contact) doc.text(contact, 48, 66);
-  doc.fontSize(8.5).text('Powered by Ghana Stores - Multi-tenant Commerce for West Africa', 48, contact ? 88 : 70);
+  doc.fontSize(8.5).text('Powered by DiDwa - Multi-tenant Commerce for West Africa', 48, contact ? 88 : 70);
 }
 
 function drawTitleAndMeta(doc, order, paid) {

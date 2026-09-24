@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Hubtel Mobile Money Service
+ * DiDwa - Hubtel Mobile Money Service
  * Collections (Receive Money) + Instant Disbursements (Send Money).
  * https://developers.hubtel.com/
  *
@@ -63,7 +63,7 @@ function interpret(data) {
  * Charge a customer's mobile money wallet (online checkout / POS MoMo).
  * amount is GHS. customerMsisdn: 233XXXXXXXXX.
  */
-export async function collectMoMo({ customerMsisdn, amount, network, description = 'Ghana Stores purchase', clientReference }) {
+export async function collectMoMo({ customerMsisdn, amount, network, description = 'DiDwa purchase', clientReference }) {
   const payload = {
     CustomerMsisdn: customerMsisdn,
     Amount: Number(amount).toFixed(2),
@@ -111,7 +111,7 @@ export async function collectMoMo({ customerMsisdn, amount, network, description
  * Instant MoMo payout to a seller's wallet (Module 3).
  * Returns { success, reference, transactionId, message }.
  */
-export async function disburseMoMo({ destination, amount, network, description = 'Ghana Stores payout', clientReference }) {
+export async function disburseMoMo({ destination, amount, network, description = 'DiDwa payout', clientReference }) {
   const payload = {
     Destination: destination,                 // 233XXXXXXXXX
     Amount: Number(amount).toFixed(2),

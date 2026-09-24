@@ -1,14 +1,16 @@
 /**
- * Ghana Stores - Instant Seller Payout Routes
+ * DiDwa - Instant Seller Payout Routes
  * MODULE 3: Wallet split into available_balance / pending_balance with
  * SELECT ... FOR UPDATE row locking. Requests under the risk threshold
- * (default GHS 5,000) trigger an instant Hubtel MoMo disbursement and are
- * marked APPROVED; larger requests park funds as PENDING_REVIEW for admin sign-off.
+ * (default GHS 5,000) trigger an instant 2-way MoMo disbursement - MTN
+ * numbers via the MTN MoMo API with one Hubtel retry on failure, other
+ * networks straight via Hubtel - and are marked APPROVED; larger requests
+ * park funds as PENDING_REVIEW for admin sign-off.
  */
 import { Router } from 'express';
 import { pool, query } from '../config/database.js';
 import { requireSeller, requireAdmin } from '../middleware/authMiddleware.js';
-import { disburseMoMo } from '../services/hubtelService.js';
+import { routeDisbursement } from '../services/paymentRouter.js';
 import { sendPayoutSms } from '../services/smsService.js';
 import { normalizeGhPhone, money } from '../utils/helpers.js';
 
@@ -107,23 +109,29 @@ router.post('/request', requireSeller, async (req, res, next) => {
       });
     }
 
-    /* ---- Below threshold: instant Hubtel disbursement ---- */
+    /* ---- Below threshold: MTN-first instant disbursement, Hubtel fallback ---- */
+    // MTN destinations try the MTN MoMo API once; any failure/timeout/pending
+    // result retries exactly once via Hubtel inside routeDisbursement.
     const reference = `GS-PAY-${Date.now()}`;
-    const result = await disburseMoMo({
+    const result = await routeDisbursement({
       destination,
       amount,
       network,
-      description: `${req.store?.name || 'Ghana Stores'} instant cashout`,
+      description: `${req.store?.name || 'DiDwa'} instant cashout`,
       clientReference: reference,
     });
 
     let payoutRow;
+    const provider = result.provider || 'HUBTEL';
+    const fallbackUsed = Boolean(result.fallback);
     if (result.success) {
       const inserted = await client.query(
-        `INSERT INTO payouts (store_id, amount, destination, network, status, reference, completed_at)
-         VALUES ($1,$2,$3,$4,'APPROVED',$5, NOW())
-         RETURNING id, status, reference`,
-        [req.auth.sub, amount, destination, network, result.reference || reference],
+        `INSERT INTO payouts (store_id, amount, destination, network, provider,
+                              fallback_used, mtn_status, status, reference, completed_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,'APPROVED',$8, NOW())
+          RETURNING id, status, reference, provider, fallback_used`,
+        [req.auth.sub, amount, destination, network, provider,
+          fallbackUsed, result.mtnStatus || null, result.reference || reference],
       );
       await client.query(
         `UPDATE stores SET available_balance = available_balance - $2 WHERE id = $1`,
@@ -132,10 +140,12 @@ router.post('/request', requireSeller, async (req, res, next) => {
       payoutRow = inserted.rows[0];
     } else {
       const inserted = await client.query(
-        `INSERT INTO payouts (store_id, amount, destination, network, status, failure_reason)
-         VALUES ($1,$2,$3,$4,'FAILED',$5)
-         RETURNING id, status, failure_reason`,
-        [req.auth.sub, amount, destination, network, result.message || 'Gateway declined'],
+        `INSERT INTO payouts (store_id, amount, destination, network, provider,
+                              fallback_used, mtn_status, status, failure_reason)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,'FAILED',$8)
+          RETURNING id, status, failure_reason, provider, fallback_used`,
+        [req.auth.sub, amount, destination, network, provider,
+          fallbackUsed, result.mtnStatus || null, result.message || 'Gateway declined'],
       );
       payoutRow = inserted.rows[0];
     }
@@ -150,9 +160,11 @@ router.post('/request', requireSeller, async (req, res, next) => {
 
     return res.status(result.success ? 200 : 502).json({
       message: result.success
-        ? `GHS ${amount.toFixed(2)} sent instantly to ${destination} (${network}).`
+        ? `GHS ${amount.toFixed(2)} sent instantly to ${destination} (${network}) via ${provider}${fallbackUsed ? ' (MTN unavailable, Hubtel fallback)' : ''}.`
         : (result.message || 'Disbursement failed. No funds were deducted.'),
       payout: payoutRow,
+      provider,
+      fallbackUsed,
       dryRun: Boolean(result.dryRun),
     });
   } catch (err) {
@@ -166,7 +178,8 @@ router.post('/request', requireSeller, async (req, res, next) => {
 router.get('/history', requireSeller, async (req, res, next) => {
   try {
     const { rows } = await query(
-      `SELECT id, amount, destination, network, status, reference, failure_reason,
+      `SELECT id, amount, destination, network, provider, fallback_used,
+              mtn_status, status, reference, failure_reason,
               initiated_at, completed_at
          FROM payouts
         WHERE store_id = $1
@@ -221,18 +234,24 @@ router.post('/:payoutId/settle', requireAdmin, async (req, res, next) => {
       return res.json({ message: 'Payout rejected. Funds returned to available balance.' });
     }
 
-    const result = await disburseMoMo({
+    // Admin-approved large payout: MTN-first via the 2-way router, one
+    // Hubtel retry when the MTN leg fails (same contract as instant cashouts).
+    const result = await routeDisbursement({
       destination: payout.destination,
       amount: Number(payout.amount),
       network: payout.network,
       description: `${payout.store_name} reviewed cashout`,
       clientReference: `GS-PAY-REV-${payout.id.slice(0, 8)}`,
     });
+    const provider = result.provider || 'HUBTEL';
 
     if (result.success) {
       await client.query(
-        `UPDATE payouts SET status='APPROVED', reference=$2, completed_at=NOW() WHERE id=$1`,
-        [payout.id, result.reference],
+        `UPDATE payouts
+            SET status='APPROVED', provider=$2, fallback_used=$3, mtn_status=$4,
+                reference=$5, completed_at=NOW()
+          WHERE id=$1`,
+        [payout.id, provider, Boolean(result.fallback), result.mtnStatus || null, result.reference],
       );
       await client.query(
         `UPDATE stores SET pending_balance = pending_balance - $2 WHERE id = $1`,
@@ -240,8 +259,12 @@ router.post('/:payoutId/settle', requireAdmin, async (req, res, next) => {
       );
     } else {
       await client.query(
-        `UPDATE payouts SET status='FAILED', failure_reason=$2 WHERE id=$1`,
-        [payout.id, result.message || 'Gateway declined'],
+        `UPDATE payouts
+            SET status='FAILED', provider=$2, fallback_used=$3, mtn_status=$4,
+                failure_reason=$5
+          WHERE id=$1`,
+        [payout.id, provider, Boolean(result.fallback), result.mtnStatus || null,
+          result.message || 'Gateway declined'],
       );
       await client.query(
         `UPDATE stores
@@ -261,8 +284,12 @@ router.post('/:payoutId/settle', requireAdmin, async (req, res, next) => {
       ).catch(() => {});
     }
     res.json({
-      message: result.success ? 'Payout approved and disbursed.' : 'Payout failed at gateway; funds refunded to wallet.',
+      message: result.success
+        ? `Payout approved and disbursed via ${provider}${result.fallback ? ' (MTN unavailable, Hubtel fallback)' : ''}.`
+        : 'Payout failed at gateway; funds refunded to wallet.',
       success: result.success,
+      provider,
+      fallbackUsed: Boolean(result.fallback),
     });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch { /* noop */ }

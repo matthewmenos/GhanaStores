@@ -1,5 +1,5 @@
 /**
- * End-to-end API verification for Ghana Stores.
+ * End-to-end API verification for DiDwa.
  * Exercises every module against a running server (default :4000).
  * Usage: node scripts/e2eTest.js [baseUrl]
  */
@@ -32,7 +32,7 @@ async function call(method, path, { token, body } = {}) {
 }
 
 async function main() {
-  console.log(`\nGhana Stores E2E -> ${BASE}\n`);
+  console.log(`\nDiDwa E2E -> ${BASE}\n`);
 
   /* ---------- Health & public endpoints ---------- */
   const health = await call('GET', '/health');

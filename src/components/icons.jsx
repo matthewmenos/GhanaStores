@@ -1,5 +1,5 @@
 /**
- * Ghana Stores icon system - pure inline SVGs (24x24 stroke, lucide-style).
+ * DiDwa icon system - pure inline SVGs (24x24 stroke, lucide-style).
  * STRICT RULE: zero emojis anywhere in the UI. Always import from here.
  */
 const base = {
@@ -140,7 +140,7 @@ export function LogoLockup({ compact = false }) {
       <IconLogo size={30} />
       {!compact && (
         <div className="leading-tight">
-          <div className="text-white font-bold text-[15px] tracking-tight">Ghana Stores</div>
+          <div className="text-white font-bold text-[15px] tracking-tight">DiDwa</div>
           <div className="text-slate-400 text-[10px] uppercase tracking-[0.18em]">Seller Platform</div>
         </div>
       )}

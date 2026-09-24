@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Custom Subdomain & Custom Domain Routing
+ * DiDwa - Custom Subdomain & Custom Domain Routing
  * MODULE 7:
  *  - Host-header middleware maps incoming requests to a tenant via
  *    stores.custom_domain OR stores.subdomain_slug.
@@ -20,7 +20,7 @@ const router = Router();
 // middleware/domainMiddleware.js (per the module spec).
 export const resolveStoreFromHost = resolveTenantStore;
 
-const PLATFORM_DOMAIN = (process.env.PLATFORM_DOMAIN || 'ghastores.com').replace(/^https?:\/\//, '');
+const PLATFORM_DOMAIN = (process.env.PLATFORM_DOMAIN || 'didwaghana.com').replace(/^https?:\/\//, '');
 const ROOT_DOMAIN = (process.env.ROOT_DOMAIN || 'localhost:5173').split(':')[0];
 // Falls back to a subdomain OF THE PLATFORM DOMAIN so white-label deploys
 // only need to set PLATFORM_DOMAIN (override with an explicit CNAME_TARGET).
@@ -199,7 +199,7 @@ router.post('/verify', requireSeller, async (req, res, next) => {
     if (!cnameOk && !apexOk) {
       return res.status(400).json({
         verified: false,
-        error: 'DNS record not detected yet. Point your domain at Ghana Stores, then retry.',
+        error: 'DNS record not detected yet. Point your domain at DiDwa, then retry.',
         records,
         instructions: {
           www: `CNAME ${domain.split('.')[0] === 'www' ? domain : 'www'} -> ${VERCEL_CNAME}`,

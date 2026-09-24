@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Shared domain helpers
+ * DiDwa - Shared domain helpers
  */
 
 /**

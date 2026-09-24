@@ -34,7 +34,7 @@ async function main() {
     port: connectionString ? undefined : Number(process.env.PGPORT || 5432),
     user: connectionString ? undefined : (process.env.PGUSER || 'postgres'),
     password: connectionString ? undefined : (process.env.PGPASSWORD || 'postgres'),
-    database: connectionString ? undefined : (process.env.PGDATABASE || 'ghanastores'),
+    database: connectionString ? undefined : (process.env.PGDATABASE || 'didwa'),
     ssl: useSsl ? { rejectUnauthorized: false } : undefined,
   });
 

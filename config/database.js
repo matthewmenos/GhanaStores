@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Neon PostgreSQL Connection Pool
+ * DiDwa - Neon PostgreSQL Connection Pool
  * Row-Level Multi-Tenancy: every tenant table carries store_id and every
  * query is scoped through helpers in this module.
  */
@@ -21,7 +21,7 @@ export const pool = new pg.Pool({
   port: connectionString ? undefined : Number(process.env.PGPORT || 5432),
   user: connectionString ? undefined : process.env.PGUSER || 'postgres',
   password: connectionString ? undefined : process.env.PGPASSWORD || 'postgres',
-  database: connectionString ? undefined : process.env.PGDATABASE || 'ghanastores',
+  database: connectionString ? undefined : process.env.PGDATABASE || 'didwa',
   max: Number(process.env.PGPOOL_MAX || (process.env.VERCEL ? 3 : 10)),
   idleTimeoutMillis: 10_000,
   connectionTimeoutMillis: 10_000,

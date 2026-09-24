@@ -1,9 +1,9 @@
 {
-  "name": "ghana-stores",
+  "name": "didwa",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Ghana Stores - Multi-tenant e-commerce platform & seller PWA for the Ghanaian market (GHS)",
+  "description": "DiDwa - Multi-tenant e-commerce platform & seller PWA for the Ghanaian market (GHS)",
   "engines": {
     "node": ">=18.0.0"
   },

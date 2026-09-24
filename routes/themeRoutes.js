@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Storefront Theme API Routes (Module: theme architecture).
+ * DiDwa - Storefront Theme API Routes (Module: theme architecture).
  *
  *  GET /api/themes                      catalog of all seeded theme templates
  *  GET /api/store/theme/public/:slug    active theme config for a customer storefront (no auth)

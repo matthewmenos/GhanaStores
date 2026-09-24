@@ -1,12 +1,12 @@
 /**
- * Ghana Stores service worker - offline-first app shell.
+ * DiDwa service worker - offline-first app shell.
  * Strategy:
  *   - Navigations & static assets: stale-while-revalidate.
  *   - /api/*: network-only (financial data must never be served stale).
  * The POS page queues failed sale submissions in localStorage and retries
  * when connectivity returns (see POSCart.jsx).
  */
-const CACHE = 'ghana-stores-v1';
+const CACHE = 'didwa-v1';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {

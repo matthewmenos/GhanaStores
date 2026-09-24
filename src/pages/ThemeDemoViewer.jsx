@@ -136,7 +136,7 @@ function StorefrontHeader({ config, viewport, cartCount, menuOpen, onToggleMenu 
       >
         <span className="flex min-w-0 items-center gap-2 text-sm font-extrabold tracking-tight">
           <IconStore size={18} />
-          <span className="max-w-[170px] truncate">{config.seo?.defaultTitle || 'Ghana Stores'}</span>
+          <span className="max-w-[170px] truncate">{config.seo?.defaultTitle || 'DiDwa'}</span>
         </span>
 
         {!isMobile && (

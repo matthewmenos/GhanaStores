@@ -1,5 +1,5 @@
 /**
- * Ghana Stores web shell.
+ * DiDwa web shell.
  *
  * Route map (hash router):
  *   #/                       public marketing welcome page - the web index

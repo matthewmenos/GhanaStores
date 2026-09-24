@@ -1,11 +1,11 @@
 /**
- * Ghana Stores - JWT Mint Helper
+ * DiDwa - JWT Mint Helper
  * Issues a signed seller (or platform admin) token using the SAME code
  * path as the running app (issueStoreToken / issueAdminToken), so the
  * claims and signature always match production.
  *
  * Usage:
- *   node scripts/mintToken.js seller demo@ghastores.com
+ *   node scripts/mintToken.js seller demo@didwa.com
  *   node scripts/mintToken.js admin
  *   (omit role to default to SELLER)
  *
@@ -27,7 +27,7 @@ if (!process.env.JWT_SECRET) {
 }
 
 if (role === 'ADMIN') {
-  const token = issueAdminToken({ id: 'admin', email: 'admin@ghastores.com', name: 'Platform Admin' });
+  const token = issueAdminToken({ id: 'admin', email: 'admin@didwa.com', name: 'Platform Admin' });
   console.log(`ADMIN_TOKEN (expires in 7d):\n${token}`);
   process.exit(0);
 }

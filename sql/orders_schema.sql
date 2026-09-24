@@ -1,5 +1,5 @@
 -- ============================================================
--- GHANA STORES - Order Management Module (public checkout flow)
+-- DIDWA - Order Management Module (public checkout flow)
 --
 -- Idempotent: safe to re-run on every deploy. Complements
 -- db/schema.sql, which creates the shared orders / order_items

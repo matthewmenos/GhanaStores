@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Arkesel Transactional SMS Service
+ * DiDwa - Arkesel Transactional SMS Service
  * https://developers.arkesel.com/
  *
  * When ARKESEL_API_KEY is missing the service runs in DRY_RUN mode:
@@ -11,7 +11,7 @@ import { formatGhs } from '../utils/helpers.js';
 
 const ARKESEL_BASE = process.env.ARKESEL_BASE_URL || 'https://sms.arkesel.com/api/v2';
 const API_KEY = process.env.ARKESEL_API_KEY || '';
-const SENDER_ID = process.env.ARKESEL_SENDER_ID || 'GhanaStores';
+const SENDER_ID = process.env.ARKESEL_SENDER_ID || 'DiDwa';
 
 /** Serverless safety: cap the HTTP attempt so it finishes inside Vercel's
  *  function time budget (Hobby maxDuration = 10s) instead of 504ing. */
@@ -61,11 +61,11 @@ function formatDate(tzDate) {
 
 /** Registration welcome: storefront URL + trial expiry (Module 1). */
 export async function sendWelcomeSms(store) {
-  const platform = process.env.PLATFORM_DOMAIN || 'ghastores.com';
+  const platform = process.env.PLATFORM_DOMAIN || 'didwaghana.com';
   const storefront = `https://${store.subdomain_slug}.${platform.replace(/^https?:\/\//, '')}`;
   const expires = formatDate(store.trial_ends_at);
   const message =
-    `Welcome to Ghana Stores, ${store.name}!\n` +
+    `Welcome to DiDwa, ${store.name}!\n` +
     `Your 14-day FREE trial is live until ${expires}.\n` +
     `Storefront: ${storefront}\n` +
     `No upfront payment needed. Sell smarter today.`;
@@ -76,7 +76,7 @@ export async function sendWelcomeSms(store) {
 export async function sendTrialReminderSms(store) {
   const expires = formatDate(store.trial_ends_at);
   const message =
-    `Hi ${store.name}, your Ghana Stores free trial ends ${expires} (3 days left).\n` +
+    `Hi ${store.name}, your DiDwa free trial ends ${expires} (3 days left).\n` +
     `Keep your storefront open - renew now to avoid interruption. Your data stays safe.`;
   return sendSms([store.phone], message);
 }
@@ -85,7 +85,7 @@ export async function sendTrialReminderSms(store) {
 export async function sendPastDueSms(store) {
   const graceEnds = formatDate(store.grace_ends_at || new Date(Date.now() + 3 * 86_400_000));
   const message =
-    `Ghana Stores: your free trial has ended. Your account is PAST DUE.\n` +
+    `DiDwa: your free trial has ended. Your account is PAST DUE.\n` +
     `Grace period runs until ${graceEnds} - subscribe before then to keep selling.`;
   return sendSms([store.phone], message);
 }
@@ -93,7 +93,7 @@ export async function sendPastDueSms(store) {
 /** Day 17 (trial end + 3-day grace): suspension notice. */
 export async function sendSuspensionSms(store) {
   const message =
-    `Ghana Stores: ${store.name} has been SUSPENDED after the grace period.\n` +
+    `DiDwa: ${store.name} has been SUSPENDED after the grace period.\n` +
     `Subscribe anytime to instantly restore your storefront, inventory and sales history.`;
   return sendSms([store.phone], message);
 }
@@ -121,7 +121,7 @@ export async function sendLowStockAlertSms(store, lowVariants) {
 export async function sendPayoutSms(store, payout) {
   const message =
     `PAYOUT ${payout.status}: ${formatGhs(payout.amount)} sent to ${payout.destination}` +
-    ` (${payout.network}).\nRef: ${payout.reference || 'n/a'}\nGhana Stores Wallet`;
+    ` (${payout.network}).\nRef: ${payout.reference || 'n/a'}\nDiDwa Wallet`;
   return sendSms([store.phone], message);
 }
 

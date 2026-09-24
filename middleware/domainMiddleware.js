@@ -1,9 +1,9 @@
 /**
- * Ghana Stores - Multi-Tenant domain resolution middleware (MODULE 7)
+ * DiDwa - Multi-Tenant domain resolution middleware (MODULE 7)
  *
  * Inspects req.headers.host on EVERY request and resolves the tenant:
  *   1. Custom domain        (shop.mybrand.com)     -> stores.custom_domain
- *   2. Platform subdomain   (slug.ghastores.com)  -> stores.subdomain_slug
+ *   2. Platform subdomain   (slug.didwaghana.com)  -> stores.subdomain_slug
  *
  * The matching store is attached as `req.tenantStore` (with the legacy
  * `req.storeFromHost` alias kept for existing routes) plus a `req.tenantInfo`
@@ -17,7 +17,7 @@
 import { query } from '../config/database.js';
 
 const platformDomain = () =>
-  (process.env.PLATFORM_DOMAIN || 'ghastores.com').replace(/^https?:\/\//, '');
+  (process.env.PLATFORM_DOMAIN || 'didwaghana.com').replace(/^https?:\/\//, '');
 const rootDomain = () => (process.env.ROOT_DOMAIN || 'localhost:5173').split(':')[0];
 
 /** Columns consumed by the storefront + WhatsApp order flows. */

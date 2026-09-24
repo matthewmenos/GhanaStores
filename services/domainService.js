@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Unified Domain Acquisition Service
+ * DiDwa - Unified Domain Acquisition Service
  * Flow A: Bring Your Own Domain (Cloudflare for SaaS custom hostnames)
  * Flow B: Buy New Domain (Openprovider + Hubtel MoMo/Card checkout)
  *
@@ -21,7 +21,7 @@ const HUBTEL_CLIENT_ID = process.env.HUBTEL_CLIENT_ID || '';
 const HUBTEL_CLIENT_SECRET = process.env.HUBTEL_CLIENT_SECRET || '';
 const HUBTEL_BASE_URL = process.env.HUBTEL_CHECKOUT_BASE_URL || 'https://api.hubtel.com';
 const HUBTEL_CALLBACK_URL = process.env.HUBTEL_CALLBACK_URL || '';
-const PLATFORM_DOMAIN = (process.env.PLATFORM_DOMAIN || 'ghastores.com').replace(/^https?:\/\//, '');
+const PLATFORM_DOMAIN = (process.env.PLATFORM_DOMAIN || 'didwaghana.com').replace(/^https?:\/\//, '');
 const CNAME_TARGET = process.env.CNAME_TARGET || `cname.${PLATFORM_DOMAIN}`;
 const DOMAIN_MARGIN = Number(process.env.DOMAIN_MARGIN || 1.25);
 
@@ -239,8 +239,8 @@ export async function initializeHubtelCheckout({ amountGhs, domainName, customer
         description: `Domain registration: ${domainName}`,
         callbackUrl: HUBTEL_CALLBACK_URL || undefined,
         merchantAccountNumber: process.env.HUBTEL_MERCHANT_ACCOUNT || undefined,
-        cancellationUrl: `${process.env.CLIENT_URL || 'https://ghastores.com'}/domains`,
-        returnUrl: `${process.env.CLIENT_URL || 'https://ghastores.com'}/domains`,
+        cancellationUrl: `${process.env.CLIENT_URL || 'https://didwaghana.com'}/domains`,
+        returnUrl: `${process.env.CLIENT_URL || 'https://didwaghana.com'}/domains`,
         clientReference: reference,
         items: [{
           name: domainName,

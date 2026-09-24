@@ -65,7 +65,7 @@ export function waLink(order) {
   let phone = String(order.customer?.phone || '').replace(/\D/g, '');
   if (phone.startsWith('0')) phone = `233${phone.slice(1)}`;
   const lines = [
-    `Hello ${order.customer?.name || ''}, your order from Ghana Stores is confirmed.`,
+    `Hello ${order.customer?.name || ''}, your order from DiDwa is confirmed.`,
     '',
     `Order: ${order.orderNumber}`,
     ...order.items.map((i) => `- ${i.quantity} x ${i.productName} (${ghs(i.totalPrice)})`),

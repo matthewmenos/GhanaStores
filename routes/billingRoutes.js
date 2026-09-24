@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Billing & Onboarding Routes
+ * DiDwa - Billing & Onboarding Routes
  * MODULE 1: Zero-upfront registration -> automatic 14-day trial (DB trigger),
  * welcome SMS via Arkesel, subscription activation and lifecycle status.
  */

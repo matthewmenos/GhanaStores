@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Sales Analytics Routes
+ * DiDwa - Sales Analytics Routes
  * MODULE 2: KPI aggregates (Total Revenue GHS, Paid Orders, AOV) and
  * 6-month monthly revenue trend shaped for Recharts consumption.
  */

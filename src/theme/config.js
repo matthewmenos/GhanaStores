@@ -19,7 +19,7 @@ export const FONT_OPTIONS = [
 /** Deep customization token schema with safe fallback defaults. */
 export const DEFAULT_CUSTOM_THEME_CONFIG = {
   branding: {
-    site_title: 'My Ghana Store',
+    site_title: 'My DiDwa Store',
     tagline: 'Quality goods, delivered nationwide',
     logo_url: '',
     favicon_url: '',
@@ -58,7 +58,7 @@ export const DEFAULT_CUSTOM_THEME_CONFIG = {
   footer: {
     columns: 3,
     blurb: 'Quality goods, honestly priced, delivered to your doorstep anywhere in Ghana.',
-    copyright: '(c) 2026 My Ghana Store. All rights reserved.',
+    copyright: '(c) 2026 My DiDwa Store. All rights reserved.',
     show_social: true,
     show_payments: true,
   },
@@ -76,7 +76,7 @@ export const DEFAULT_CUSTOM_THEME_CONFIG = {
   pages_content: {
     about_title: 'Our Story',
     about_body: 'We source authentic, high-quality goods directly from trusted makers and farmers across the country, so every purchase supports local families and communities.',
-    contact_email: 'hello@myghanastore.com',
+    contact_email: 'hello@didwaghana.com',
     contact_phone: '+233 20 123 4567',
     contact_address: '12 Oxford Street, Osu, Ghana',
   },

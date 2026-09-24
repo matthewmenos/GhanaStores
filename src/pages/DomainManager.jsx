@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Unified Domain Management Dashboard
+ * DiDwa - Unified Domain Management Dashboard
  * Flow A: Connect Existing Domain (BYOD via Cloudflare for SaaS)
  * Flow B: Buy New Domain (Openprovider + Hubtel MoMo/Card checkout)
  *
@@ -17,7 +17,7 @@ import {
  * Constants
  * ========================================================================= */
 
-const PLATFORM_DOMAIN = import.meta.env.VITE_PLATFORM_DOMAIN || 'ghastores.com';
+const PLATFORM_DOMAIN = import.meta.env.VITE_PLATFORM_DOMAIN || 'didwaghana.com';
 
 const DOMAIN_RE = /^(\*\.)?([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
 

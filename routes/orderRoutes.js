@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Order Management Module
+ * DiDwa - Order Management Module
  * Public storefront checkout + seller fulfillment console.
  *
  *   POST  /api/public/orders              guest checkout (transactional)

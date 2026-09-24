@@ -1,5 +1,5 @@
 /**
- * Ghana Stores API client.
+ * DiDwa API client.
  * Attaches the seller JWT and normalizes errors. No emojis, ever.
  */
 const TOKEN_KEY = 'gs_token';

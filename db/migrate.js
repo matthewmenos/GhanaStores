@@ -1,7 +1,7 @@
 /**
  * db/migrate.js
  * ---------------------------------------------------------------
- * Ghana Stores - Conversion-optimized storefront theme architecture.
+ * DiDwa - Conversion-optimized storefront theme architecture.
  *
  * 1. Creates the `theme_templates` catalog table (versioned configs).
  * 2. Extends `stores` with `active_theme_id` (FK -> theme_templates) and
@@ -186,7 +186,7 @@ function buildConfig(category, palette, layout, border) {
     paymentBadges: ['MTN MoMo', 'Vodafone Cash', 'AirtelTigo', 'Cash on Delivery'],
     seo: {
       titleTemplate: `%s | ${category.label} Store`,
-      defaultTitle: `${category.label} — Ghana Stores`,
+      defaultTitle: `${category.label} — DiDwa`,
       defaultDescription: `Discover the best ${category.label.toLowerCase()} in Ghana. Fast delivery, GHS prices, MoMo accepted.`,
       ogImage: `/api/og?title=${encodeURIComponent(category.label)}`,
     },

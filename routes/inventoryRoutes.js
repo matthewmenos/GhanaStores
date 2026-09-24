@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Multi-Variant Inventory Routes
+ * DiDwa - Multi-Variant Inventory Routes
  * MODULE 6: Product + variant CRUD, custom re-order thresholds, stock
  * adjustments with automatic Arkesel low-stock SMS alerts.
  */

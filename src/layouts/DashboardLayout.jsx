@@ -186,7 +186,7 @@ function MainSidebar({ open, store, onNavClose, route, onNavigate, isActive }) {
       <div className="-mx-2 mb-2 flex h-12 items-center justify-between">
         <div className="flex items-center gap-2.5">
           <IconStore size={22} className="text-blue-400" />
-          <span className="font-bold">Ghana Stores</span>
+          <span className="font-bold">DiDwa</span>
         </div>
         <button
           type="button"
@@ -775,7 +775,7 @@ export default function DashboardLayout({ children }) {
           </button>
           <span className="flex items-center gap-2 text-sm font-bold">
             <IconStore size={18} className="text-blue-400" />
-            Ghana Stores
+            DiDwa
           </span>
           {isCustomizerOpen && (
             <button

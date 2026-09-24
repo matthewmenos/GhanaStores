@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Billing Cron Route (Vercel Cron Jobs)
+ * DiDwa - Billing Cron Route (Vercel Cron Jobs)
  *
  *   GET /api/cron/billing
  *

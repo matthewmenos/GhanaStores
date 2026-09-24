@@ -1,5 +1,5 @@
 -- ============================================================
--- GHANA STORES - Multi-Variant Inventory & Low-Stock Alerts
+-- DIDWA - Multi-Variant Inventory & Low-Stock Alerts
 -- Module 6 supplemental DDL.
 --
 -- Idempotent: safe to re-run on any environment (fresh or existing).

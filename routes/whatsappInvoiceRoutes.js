@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - WhatsApp Commerce & Automated PDF Invoicing
+ * DiDwa - WhatsApp Commerce & Automated PDF Invoicing
  * MODULE 5:
  *  - Buyers submit a cart -> structured order created + pre-formatted
  *    WhatsApp deep-link payload directed at the merchant's number.
@@ -20,7 +20,7 @@ import {
 
 const router = Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ghana-stores-dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'didwa-dev-secret';
 const PAID_SET = "'PAID','FULFILLED','DELIVERED'";
 
 /* Stable receipt share-links: HMAC(orderId) lets buyers re-download a PDF
@@ -49,7 +49,7 @@ export function buildWhatsAppLink(store, order, items) {
     `Customer: ${order.customer_name || 'Buyer'} (${order.customer_phone || 'n/a'})`,
     store.momo_number ? `Payment: MoMo to ${store.momo_number}` : 'Payment: Cash on delivery',
     order.notes ? `Notes: ${order.notes}` : null,
-    `Placed via ${process.env.PLATFORM_DOMAIN || 'ghastores.com'}`,
+    `Placed via ${process.env.PLATFORM_DOMAIN || 'didwaghana.com'}`,
   ].filter((l) => l !== null);
 
   const target = store.whatsapp_number || store.phone;
@@ -376,7 +376,7 @@ async function streamOrderPdf(req, res) {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="GhanaStores-${order.order_number}.pdf"`,
+      `attachment; filename="DiDwa-${order.order_number}.pdf"`,
     );
     res.setHeader('Content-Length', pdfBuffer.length);
     return res.send(pdfBuffer);
@@ -455,7 +455,7 @@ whatsappRouter.post('/generate-link', async (req, res, next) => {
       ...(String(customer.address || '').trim() ? [`Address: ${String(customer.address).trim()}`] : []),
       ...(store.momo_number ? [`Pay via MoMo: ${store.momo_number}`] : ['Payment: Cash on delivery']),
       ...(String(b.notes || '').trim() ? [`Notes: ${String(b.notes).trim()}`] : []),
-      `Placed via ${process.env.PLATFORM_DOMAIN || 'ghastores.com'}`,
+      `Placed via ${process.env.PLATFORM_DOMAIN || 'didwaghana.com'}`,
     ];
 
     const sellerPhone = normalizeGhPhone(store.whatsapp_number || store.phone) ||

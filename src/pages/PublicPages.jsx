@@ -73,7 +73,7 @@ function Shell({ authed, children }) {
             <a href="#/terms" className="transition hover:text-charcoal">Terms</a>
             <a href="#/privacy" className="transition hover:text-charcoal">Privacy</a>
           </nav>
-          <p>© {new Date().getFullYear()} Ghana Stores</p>
+          <p>© {new Date().getFullYear()} DiDwa</p>
         </div>
       </footer>
     </div>
@@ -106,13 +106,13 @@ export function AboutPage({ authed = false }) {
       <PageHero
         eyebrow="Our story"
         title="Commerce tools made for Ghana."
-        sub="Ghana Stores exists because running a shop here should not require five notebooks, two calculators and a leap of faith."
+        sub="DiDwa exists because running a shop here should not require five notebooks, two calculators and a leap of faith."
       />
       <section className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
         <div className="space-y-5 text-[15px] leading-relaxed text-slate-600">
           <p>We started in Accra watching brilliant traders lose hours to manual receipts, missed MoMo confirmations and stock counts done from memory. The tools that existed were built elsewhere, priced in dollars and designed for shops that never lose internet.</p>
           <p>So we built the opposite: a seller companion that assumes patchy networks, speaks Mobile Money natively, reconciles rider cash without drama and turns every WhatsApp enquiry into a receipted order. One login runs the counter, the storefront and the books.</p>
-          <p>Today merchants across all sixteen regions use Ghana Stores to sell in person and online - and we are just getting started.</p>
+          <p>Today merchants across all sixteen regions use DiDwa to sell in person and online - and we are just getting started.</p>
         </div>
 
         <div className="mt-12 grid gap-5 sm:grid-cols-3">
@@ -127,7 +127,7 @@ export function AboutPage({ authed = false }) {
 
         <div className="mt-12 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-[#0B1120] p-7 text-white">
           <div>
-            <h3 className="text-lg font-extrabold">Run your shop on Ghana Stores</h3>
+            <h3 className="text-lg font-extrabold">Run your shop on DiDwa</h3>
             <p className="mt-1 text-sm text-slate-300">Free for 14 days. No card required.</p>
           </div>
           <button
@@ -273,7 +273,7 @@ const TERMS_SECTIONS = [
   {
     h: 'Accepting these terms',
     ps: [
-      `By creating an account or using Ghana Stores (the "Service") you agree to these Terms of Service and our Privacy Policy. If you register on behalf of a business, you confirm you are authorised to bind that business.`,
+      `By creating an account or using DiDwa (the "Service") you agree to these Terms of Service and our Privacy Policy. If you register on behalf of a business, you confirm you are authorised to bind that business.`,
       'You must be at least 18 years old, or have the consent and supervision of a parent or guardian, to use the Service.',
     ],
   },
@@ -341,7 +341,7 @@ export function TermsPage({ authed = false }) {
     <LegalDoc
       authed={authed}
       title="Terms of Service"
-      intro={`These terms form the agreement between you and Ghana Stores ("we", "us") governing use of the seller platform, POS tools and storefronts hosted on ${PLATFORM_DOMAIN}. Please read them before creating an account.`}
+      intro={`These terms form the agreement between you and DiDwa ("we", "us") governing use of the seller platform, POS tools and storefronts hosted on ${PLATFORM_DOMAIN}. Please read them before creating an account.`}
       sections={TERMS_SECTIONS}
     />
   );
@@ -352,7 +352,7 @@ const PRIVACY_SECTIONS = [
   {
     h: 'Who we are',
     ps: [
-      `Ghana Stores is a multi-tenant commerce platform operated from Accra, Ghana, with seller storefronts served from ${PLATFORM_DOMAIN} and merchant-owned custom domains. This policy explains what personal data we collect, why, and the choices you have.`,
+      `DiDwa is a multi-tenant commerce platform operated from Accra, Ghana, with seller storefronts served from ${PLATFORM_DOMAIN} and merchant-owned custom domains. This policy explains what personal data we collect, why, and the choices you have.`,
       'For any privacy question or request, write to ' + CONTACT_EMAIL + '.',
     ],
   },

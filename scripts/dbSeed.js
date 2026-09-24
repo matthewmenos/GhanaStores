@@ -9,9 +9,9 @@ import { normalizeGhPhone, slugifyStoreName, generateOrderNumber, money } from '
 
 const DEMO = {
   name: "Ama's Fashion Hub",
-  email: 'demo@ghastores.com',
+  email: 'demo@didwa.com',
   phone: '0244000000',
-  password: 'ghanastores1',
+  password: 'didwa1',
   whatsappNumber: '0244000000',
   momoNumber: '0244000000',
 };
@@ -102,7 +102,7 @@ async function main() {
     console.log('Sample orders seeded.');
   }
 
-  console.log('\nDemo login -> email: demo@ghastores.com | password: ghanastores1');
+  console.log('\nDemo login -> email: demo@didwa.com | password: didwa1');
 }
 
 main()

@@ -1,5 +1,5 @@
 /**
- * WelcomePage - public marketing index for Ghana Stores.
+ * WelcomePage - public marketing index for DiDwa.
  * Tells visitors what the platform does and funnels them into the seller
  * PWA (register / login). Rendered at bare index hash (#/) with NO
  * dashboard chrome, open to everyone.
@@ -73,7 +73,7 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
       {/* Nav */}
       <header className="sticky top-0 z-40 border-b border-slate-900/5 bg-white/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Ghana Stores home">
+          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="DiDwa home">
             <LogoLockup />
           </button>
           <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-500 lg:flex" aria-label="Sections">
@@ -128,7 +128,7 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
               <span className="mt-1 block bg-gradient-to-r from-blue-600 to-emerald-brand bg-clip-text text-transparent">Get paid instantly.</span>
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-500 sm:text-lg">
-              Ghana Stores is the all-in-one companion for Ghanaian merchants: a POS that works offline, Mobile Money payouts,
+              DiDwa is the all-in-one companion for Ghanaian merchants: a POS that works offline, Mobile Money payouts,
               inventory with smart alerts, WhatsApp ordering and a storefront you can theme - all from one login.
             </p>
 
@@ -197,7 +197,7 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
         <div className="mx-auto max-w-2xl text-center">
           <span className="text-xs font-extrabold uppercase tracking-widest text-blue-600">Everything included</span>
           <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">One login. Every tool your shop needs.</h2>
-          <p className="mt-4 text-base text-slate-500">Stop stitching together notebooks, calculators and chat threads - Ghana Stores runs the whole sale, end to end.</p>
+          <p className="mt-4 text-base text-slate-500">Stop stitching together notebooks, calculators and chat threads - DiDwa runs the whole sale, end to end.</p>
         </div>
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -239,7 +239,7 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
           <div className="mx-auto max-w-2xl text-center">
             <span className="text-xs font-extrabold uppercase tracking-widest text-emerald-400">Why merchants switch</span>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight">The back office that runs itself</h2>
-            <p className="mt-4 text-sm leading-relaxed text-slate-300 sm:text-base">From kiosks at Makola to growing boutiques in Kumasi - sellers use Ghana Stores to keep books clean and cash moving.</p>
+            <p className="mt-4 text-sm leading-relaxed text-slate-300 sm:text-base">From kiosks at Makola to growing boutiques in Kumasi - sellers use DiDwa to keep books clean and cash moving.</p>
           </div>
           <dl className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-6 text-center md:grid-cols-4">
             {STATS.map(({ v, k }) => (
@@ -315,7 +315,7 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
           </nav>
         </div>
         <p className="mx-auto mt-8 max-w-6xl border-t border-slate-900/5 px-4 pt-6 text-[11px] font-medium text-slate-400 sm:px-6">
-          (c) {new Date().getFullYear()} Ghana Stores · Built for Ghanaian commerce
+          (c) {new Date().getFullYear()} DiDwa · Built for Ghanaian commerce
         </p>
       </footer>
 

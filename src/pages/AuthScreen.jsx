@@ -200,7 +200,7 @@ export default function AuthScreen({ onAuthed, initialMode = 'register' }) {
             <p className="mt-1 text-sm text-slate-400">
               {mode === 'register'
                 ? '14 days free. No card required.'
-                : 'Sign in to your Ghana Stores dashboard.'}
+                : 'Sign in to your DiDwa dashboard.'}
             </p>
 
             {error && (
@@ -332,7 +332,7 @@ export default function AuthScreen({ onAuthed, initialMode = 'register' }) {
           </div>
 
           <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-400">
-            Secured by Ghana Stores. By continuing you agree to our Terms of Service and Privacy Policy.
+            Secured by DiDwa. By continuing you agree to our Terms of Service and Privacy Policy.
           </p>
         </div>
       </main>

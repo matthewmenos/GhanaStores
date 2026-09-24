@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Vercel Serverless Entry Point
+ * DiDwa - Vercel Serverless Entry Point
  * Wraps the modular Express application (../server.js) as a single Node
  * serverless function. vercel.json routes /api/* and /health here, while the
  * built Vite PWA in dist/ is served from Vercel's edge network.

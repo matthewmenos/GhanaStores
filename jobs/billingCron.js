@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Billing Cron Engine
+ * DiDwa - Billing Cron Engine
  *
  * Daily lifecycle automation for the 14-day free trial:
  *   Day 11  -> SMS renewal reminder to TRIAL stores
@@ -89,7 +89,7 @@ export function startBillingCron() {
   // 08:00 Accra time (GMT+0) daily.
   scheduledTask = cron.schedule('0 8 * * *', runBillingCycle, {
     timezone: 'Africa/Accra',
-    name: 'ghana-stores-billing',
+    name: 'didwa-billing',
   });
   console.log('[cron] billing scheduler active - daily at 08:00 Africa/Accra.');
   return scheduledTask;

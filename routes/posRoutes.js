@@ -1,5 +1,5 @@
 /**
- * Ghana Stores - Offline POS & COD Reconciliation Routes
+ * DiDwa - Offline POS & COD Reconciliation Routes
  * MODULE 4: In-store register sales (cash / MoMo) with atomic inventory
  * decrement + loyalty awarding, plus Rider Transit Balance tracking and
  * one-click cash reconciliation into the merchant wallet.
@@ -7,7 +7,7 @@
 import { Router } from 'express';
 import { pool, query, withTransaction } from '../config/database.js';
 import { requireActiveSeller } from '../middleware/authMiddleware.js';
-import { collectMoMo } from '../services/hubtelService.js';
+import { routeCollection } from '../services/paymentRouter.js';
 import { sendLowStockAlertSms } from '../services/smsService.js';
 import {
   normalizeGhPhone, generateOrderNumber, pointsForSpend,
@@ -199,11 +199,12 @@ async function finishPosSale(req, res, client, ctx) {
     const pointsEarned = pointsForSpend(total, loyalty_points_per_ghs);
     const orderNumber = generateOrderNumber();
 
-    /* ---- MoMo collection before crediting wallet ---- */
+    /* ---- MoMo collection (MTN-first, Hubtel fallback) before crediting wallet ---- */
     let momoRef = null;
+    let momoProvider = null;
     if (paymentMethod === 'MOMO') {
       const payPhone = customerPhone || normalizeGhPhone(req.store?.phone);
-      const collect = await collectMoMo({
+      const collect = await routeCollection({
         customerMsisdn: payPhone,
         amount: total,
         network: b.momoNetwork || 'MTN',
@@ -216,6 +217,8 @@ async function finishPosSale(req, res, client, ctx) {
         return res.status(402).json({ error: collect.message || 'MoMo payment was not approved.' });
       }
       momoRef = collect.reference;
+      // Record which provider collected the MoMo payment on the order note.
+      momoProvider = collect.provider || 'HUBTEL';
     }
 
     /* ---- Persist order + items ---- */
@@ -228,7 +231,8 @@ async function finishPosSale(req, res, client, ctx) {
        RETURNING id, order_number, total`,
       [req.auth.sub, orderNumber, customerId, b.customerName || 'Walk-in customer',
         customerPhone, paymentMethod, subtotal, discount,
-        pointsEarned, pointsRedeemed, total, momoRef ? `MoMo ref ${momoRef}` : (b.notes || null)],
+        pointsEarned, pointsRedeemed, total,
+        momoRef ? `MoMo ref ${momoRef} via ${momoProvider || 'HUBTEL'}` : (b.notes || null)],
     );
     const order = orderIns.rows[0];
 
@@ -276,7 +280,7 @@ async function finishPosSale(req, res, client, ctx) {
       message: `Sale ${order.order_number} recorded. ${paymentMethod === 'CASH' ? 'Cash' : 'MoMo'} added to wallet.`,
       order: {
         ...order, subtotal, discount, total, paymentMethod, momoRef,
-        pointsEarned, pointsRedeemed,
+        momoProvider, pointsEarned, pointsRedeemed,
       },
     });
   } catch (err) {
