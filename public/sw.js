@@ -9,8 +9,8 @@
  *     accepted even when the client loses its connection, so the seller must
  *     reconcile that transaction manually before retrying.
  */
-const CACHE = 'didwa-v2';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg'];
+const CACHE = 'didwa-v3';
+const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/didwa-logo.jpg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

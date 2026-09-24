@@ -19,7 +19,7 @@
 import { useEffect, useState } from 'react';
 import {
   IconStore, IconDashboard, IconCart, IconBox, IconReceipt,
-  IconWallet, IconLogout, IconX,
+  IconWallet, IconLogout, IconX, IconLogo,
 } from '../components/icons.jsx';
 import {
   Palette, Type, MessageSquare, Layout,
@@ -186,7 +186,7 @@ function MainSidebar({ open, store, onNavClose, route, onNavigate, isActive }) {
       {/* Brand header */}
       <div className="-mx-2 mb-2 flex h-12 items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <IconStore size={22} className="text-blue-400" />
+          <IconLogo size={30} className="rounded-full" />
           <span className="font-bold">DiDwa</span>
         </div>
         <button

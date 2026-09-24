@@ -7,21 +7,21 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0F172A",
-  "theme_color": "#2563EB",
+  "background_color": "#075C9C",
+  "theme_color": "#0B8BC9",
   "lang": "en-GH",
   "currency": "GHS",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/didwa-logo.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/didwa-logo.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg",
       "purpose": "maskable"
     }
   ],

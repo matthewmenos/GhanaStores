@@ -123,14 +123,14 @@ export const IconSpinner = ({ size = 20, className = '' }) => (
     <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
   </svg>
 );
-export const IconLogo = ({ size = 28, className = '' }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
-    <rect x="2" y="2" width="28" height="28" rx="8" fill="#2563EB" />
-    <path d="M8 13l1.6-5h12.8L24 13" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M9 13v10.4a.6.6 0 0 0 .6.6h12.8a.6.6 0 0 0 .6-.6V13" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M8 13a2.6 2.6 0 0 0 5.3 0A2.6 2.6 0 0 0 18.7 13 2.6 2.6 0 0 0 24 13" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M13 24v-5h6v5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
+export const IconLogo = ({ size = 28, className = '', alt = 'DiDwa' }) => (
+  <img
+    src="/didwa-logo.jpg"
+    alt={alt}
+    width={size}
+    height={size}
+    className={`shrink-0 rounded-full object-cover ${className}`}
+  />
 );
 
 /** Brand mark + wordmark for sidebars and auth screens. */

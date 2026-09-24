@@ -14,7 +14,7 @@
 import { useState } from 'react';
 import { ghs } from '../../api.js';
 import {
-  IconStore, IconWhatsApp, IconCart,
+  IconStore, IconLogo, IconWhatsApp, IconCart,
   IconShield, IconTruck, IconWallet,
 } from '../icons.jsx';
 import {
@@ -120,9 +120,9 @@ function PreviewHeader({ t, active, onNavigate }) {
       <header className={`flex items-center gap-3 border-b px-5 py-3 ${compact ? 'px-3 py-2.5' : ''} ${centered ? 'flex-col justify-center gap-2' : 'justify-between'}`} style={{ borderColor: 'rgba(148,163,184,.25)' }}>
         <button type="button" onClick={() => onNavigate('home')} className={`flex items-center gap-2.5 ${centered ? 'flex-col' : ''}`}>
           {c.branding.logo_url ? (
-            <img src={c.branding.logo_url} alt="" className="h-8 w-8 rounded object-contain" />
+            <img src={c.branding.logo_url} alt="" className="h-10 w-10 rounded-full object-cover" />
           ) : (
-            <span className="rounded-lg p-1.5" style={{ background: 'var(--primary)', color: '#fff' }}><IconStore size={16} /></span>
+            <IconLogo size={40} className="rounded-full" />
           )}
           <span className={centered ? 'text-center' : ''}>
             <span className="block text-sm font-extrabold leading-tight" style={{ fontWeight: c.typography.heading_weight }}>{c.branding.site_title}</span>
