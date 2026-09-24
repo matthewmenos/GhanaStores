@@ -17,6 +17,7 @@
     "db:init": "node scripts/dbInit.js",
     "db:migrate": "node db/migrate.js",
     "db:seed": "node scripts/dbSeed.js",
+    "admin:create": "node scripts/createAdmin.js",
     "token": "node scripts/mintToken.js"
   },
   "dependencies": {

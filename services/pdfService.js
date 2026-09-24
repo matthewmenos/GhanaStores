@@ -77,9 +77,14 @@ function drawHeader(doc, store) {
   doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(22)
     .text(safe(store.name) || 'DiDwa Store', 48, 34);
   doc.font('Helvetica').fontSize(9.5).fillColor('#DBEAFE');
-  const platformDomain = (process.env.PLATFORM_DOMAIN || 'didwaghana.com').replace(/^https?:\/\//, '');
+  const platformDomain = (process.env.PLATFORM_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  const storefrontHost = store.custom_domain
+    ? String(store.custom_domain).replace(/^https?:\/\//, '').replace(/\/+$/, '')
+    : (store.subdomain_slug && platformDomain
+      ? `${store.subdomain_slug}.${platformDomain}`
+      : null);
   const contact = [
-    store.subdomain_slug ? `${store.subdomain_slug}.${platformDomain}` : null,
+    storefrontHost,
     store.phone ? `Tel: ${safe(store.phone)}` : null,
     store.momo_number ? `MoMo: ${safe(store.momo_number)}` : null,
   ].filter(Boolean).join('   |   ');

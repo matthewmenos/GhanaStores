@@ -4,6 +4,7 @@
  */
 const TOKEN_KEY = 'gs_token';
 const STORE_KEY = 'gs_store';
+export const OFFLINE_POS_KEY = 'didwa_pos_pending';
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';
@@ -25,6 +26,31 @@ export function getCachedStore() {
   } catch {
     return null;
   }
+}
+
+function readPendingSales() {
+  try { return JSON.parse(localStorage.getItem(OFFLINE_POS_KEY) || '[]'); } catch { return []; }
+}
+function writePendingSales(sales) {
+  localStorage.setItem(OFFLINE_POS_KEY, JSON.stringify(sales.slice(-100)));
+}
+export function queueOfflineSale(sale) {
+  const sales = readPendingSales().filter((s) => s.idempotencyKey !== sale.idempotencyKey);
+  writePendingSales([...sales, sale]);
+}
+export function pendingOfflineSales() { return readPendingSales(); }
+export async function flushOfflineSales() {
+  const pending = readPendingSales();
+  const remaining = [];
+  for (const sale of pending) {
+    try { await request('/api/pos/sales', { method: 'POST', body: sale.payload }); }
+    catch (error) {
+      if (error.status === 401) throw error;
+      remaining.push(sale);
+    }
+  }
+  writePendingSales(remaining);
+  return pending.length - remaining.length;
 }
 
 async function request(path, { method = 'GET', body, isForm } = {}) {

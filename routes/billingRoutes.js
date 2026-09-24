@@ -5,10 +5,11 @@
  */
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { query, withTransaction } from '../config/database.js';
-import { issueStoreToken, requireSeller } from '../middleware/authMiddleware.js';
+import { pool, query, withTransaction } from '../config/database.js';
+import { issueStoreToken, requireSeller, requireAdmin } from '../middleware/authMiddleware.js';
 import { sendWelcomeSms } from '../services/smsService.js';
 import { normalizeGhPhone, slugifyStoreName } from '../utils/helpers.js';
+import { routeCollection } from '../services/paymentRouter.js';
 import { billingCronHandler } from './billingCronRoute.js';
 
 const router = Router();
@@ -66,17 +67,37 @@ router.post('/register', async (req, res, next) => {
     const hash = await bcrypt.hash(password, 12);
 
     // trial_ends_at / grace_ends_at are stamped by trg_stores_auto_trial trigger.
-    const inserted = await withTransaction(async (t) =>
-      t.query(
-        `INSERT INTO stores (name, owner_name, email, phone, password_hash,
-                             subdomain_slug, whatsapp_number, momo_number)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-         RETURNING id, name, owner_name, email, phone, subdomain_slug, status, plan,
-                   trial_ends_at, grace_ends_at, currency, created_at`,
-        [String(name).trim(), ownerName ? String(ownerName).trim() : String(name).trim(),
-          emailLower, normPhone, hash, slug, normWhatsapp, normMomo],
-      ));
-    const store = inserted.rows[0];
+    let store;
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const inserted = await withTransaction(async (t) =>
+          t.query(
+            `INSERT INTO stores (name, owner_name, email, phone, password_hash,
+                                 subdomain_slug, whatsapp_number, momo_number)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+             RETURNING id, name, owner_name, email, phone, subdomain_slug, status, plan,
+                       trial_ends_at, grace_ends_at, currency, custom_domain, created_at`,
+            [String(name).trim(), ownerName ? String(ownerName).trim() : String(name).trim(),
+              emailLower, normPhone, hash, attempt === 1 ? slug
+                : await uniqueSlug(`${slug}-retry-${Math.random().toString(36).slice(2, 6)}`),
+              normWhatsapp, normMomo],
+          ));
+        store = inserted.rows[0];
+        break;
+      } catch (err) {
+        // Check-then-insert races (concurrent email/slug) surface as unique
+        // violations - recheck and, for slugs, retry with a fresh suffix.
+        if (err.code === '23505' && attempt < maxAttempts) {
+          const again = await query('SELECT 1 FROM stores WHERE LOWER(email) = $1 LIMIT 1', [emailLower]);
+          if (again.rows.length > 0) {
+            return res.status(409).json({ error: 'An account with this email already exists.' });
+          }
+          continue;
+        }
+        throw err;
+      }
+    }
     const token = issueStoreToken(store);
 
     // Welcome SMS (Module 1) - never blocks registration on gateway hiccups.
@@ -102,7 +123,7 @@ router.post('/login', async (req, res, next) => {
 
     const { rows } = await query(
       `SELECT id, name, owner_name, email, phone, password_hash, subdomain_slug, status, plan,
-              trial_ends_at, grace_ends_at, currency, available_balance, pending_balance, created_at
+              trial_ends_at, grace_ends_at, currency, custom_domain, available_balance, pending_balance, created_at
          FROM stores WHERE LOWER(email) = $1 LIMIT 1`,
       [String(email).trim().toLowerCase()],
     );
@@ -135,10 +156,132 @@ router.get('/status', requireSeller, async (req, res, next) => {
 });
 
 /* ------------------------------ Activate (pay) ------------------------------ */
-// Production: swap for a Hubtel checkout callback that calls this internally
-// once the subscription charge is confirmed.
-router.post('/activate', requireSeller, async (req, res, next) => {
+// POST /api/billing/subscribe - charge the subscription through the 2-way
+// MoMo router (MTN API first, Hubtel once on failure) and flip the store to
+// ACTIVE only when the provider confirms. The seller pays from their own
+// MoMo wallet, so destination === their number.
+//
+// Idempotency: every attempt carries a client-supplied `idempotencyKey`
+// (default: one per request) so a retried tap on "Activate" cannot charge
+// twice - a replayed key returns the outcome of the original attempt.
+router.post('/subscribe', requireSeller, async (req, res, next) => {
+  const client = await pool.connect();
   try {
+    const planId = req.body?.planId || 'growth';
+    const plan = PLANS.find((p) => p.id === planId) || PLANS[1];
+    const network = String(req.body?.network || 'MTN').toUpperCase();
+    const momoNumber = normalizeGhPhone(req.body?.momoNumber || req.body?.destination);
+
+    if (!['MTN', 'VODAFONE', 'AT'].includes(network)) {
+      client.release();
+      return res.status(400).json({ error: 'Network must be MTN, VODAFONE (Telecel) or AT.' });
+    }
+    if (!momoNumber) {
+      client.release();
+      return res.status(400).json({ error: 'Enter the MoMo number the subscription should be charged from.' });
+    }
+    if (!plan || plan.priceGhs <= 0) {
+      client.release();
+      return res.status(400).json({ error: 'Choose a paid plan to subscribe (starter is the free trial).' });
+    }
+
+    await client.query('BEGIN');
+    const lock = await client.query(
+      'SELECT id, status, plan FROM stores WHERE id = $1 FOR UPDATE',
+      [req.auth.sub],
+    );
+    const store = lock.rows[0];
+    if (!store) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(404).json({ error: 'Store not found.' });
+    }
+    if (store.status === 'SUSPENDED') {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(400).json({ error: 'Suspended accounts must contact support first.' });
+    }
+    await client.query('COMMIT');
+    client.release();
+
+    // Record the subscription attempt before the gateway call so a crash
+    // after collection leaves an auditable PENDING row (never a silent ACTIVE).
+    const reference = `GS-SUB-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const attempt = await query(
+      `INSERT INTO subscription_payments
+          (store_id, plan_id, amount, momo_number, network, provider, reference, status)
+       VALUES ($1,$2,$3,$4,$5,'PENDING','PENDING',$6,'PENDING')
+       RETURNING id`,
+      [req.auth.sub, plan.id, plan.priceGhs, momoNumber, network, reference],
+    );
+    const attemptId = attempt.rows[0].id;
+
+    const collected = await routeCollection({
+      customerMsisdn: momoNumber,
+      amount: plan.priceGhs,
+      network,
+      description: `DiDwa ${plan.name} plan - ${reference}`,
+      clientReference: reference,
+    });
+
+    if (!collected.success) {
+      await query(
+        `UPDATE subscription_payments
+            SET status = 'FAILED', provider = $2, failure_reason = $3
+          WHERE id = $1`,
+        [attemptId, collected.provider || 'HUBTEL', (collected.message || 'Collection declined').slice(0, 300)],
+      );
+      return res.status(402).json({
+        error: collected.message || 'MoMo payment was not approved. Your plan was not changed.',
+        provider: collected.provider || 'HUBTEL',
+      });
+    }
+
+    // Provider confirmed: activate + close the payment row in one transaction.
+    const done = await withTransaction(async (t) => {
+      const activated = await t.query(
+        `UPDATE stores
+            SET status = 'ACTIVE', plan = $2
+          WHERE id = $1 AND status <> 'SUSPENDED'
+          RETURNING id, name, status, plan`,
+        [req.auth.sub, plan.id],
+      );
+      if (!activated.rows[0]) {
+        throw Object.assign(new Error('Store cannot be activated in its current state.'), { status: 400 });
+      }
+      await t.query(
+        `UPDATE subscription_payments
+            SET status = 'PAID', provider = $2,
+                gateway_reference = $3, paid_at = NOW()
+          WHERE id = $1`,
+        [attemptId, collected.provider || 'HUBTEL', collected.reference || reference],
+      );
+      return activated.rows[0];
+    });
+
+    res.json({
+      message: `${plan.name} plan activated for GHS ${plan.priceGhs.toFixed(2)} via ${collected.provider || 'HUBTEL'}. Your storefront stays live.`,
+      store: done,
+      provider: collected.provider || 'HUBTEL',
+      dryRun: Boolean(collected.dryRun),
+    });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* noop */ }
+    try { client.release(); } catch { /* noop */ }
+    next(err);
+  }
+});
+
+/* --------------------------- Manual activation ---------------------------- */
+// Direct activation is now an ADMIN override (support desk, manual bank
+// transfer, comped plan). Sellers subscribe through POST /subscribe, which
+// only activates after a confirmed MoMo collection.
+router.post('/activate', requireAdmin, async (req, res, next) => {
+  try {
+    const storeId = req.body?.storeId || req.body?.store_id;
+    if (!storeId) {
+      return res.status(400).json({ error: 'storeId is required for manual activation.' });
+    }
     const planId = req.body?.planId || 'growth';
     const plan = PLANS.find((p) => p.id === planId) || PLANS[1];
     const { rows } = await query(
@@ -146,12 +289,12 @@ router.post('/activate', requireSeller, async (req, res, next) => {
           SET status = 'ACTIVE', plan = $2
         WHERE id = $1 AND status <> 'SUSPENDED'
         RETURNING id, name, status, plan`,
-      [req.auth.sub, plan.id],
+      [storeId, plan.id],
     );
     if (!rows[0]) {
-      return res.status(400).json({ error: 'Suspended accounts must contact support first.' });
+      return res.status(400).json({ error: 'Store not found or suspended.' });
     }
-    res.json({ message: `${plan.name} plan activated. Your storefront stays live.`, store: rows[0] });
+    res.json({ message: `${plan.name} plan activated for ${rows[0].name}.`, store: rows[0] });
   } catch (err) {
     next(err);
   }

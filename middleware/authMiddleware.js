@@ -6,8 +6,27 @@
 import jwt from 'jsonwebtoken';
 import { query } from '../config/database.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'didwa-dev-secret';
 const TOKEN_TTL = '7d';
+const DEV_SECRET = 'didwa-dev-secret';
+
+/**
+ * Resolve the signing secret once.
+ *
+ * Production MUST provide JWT_SECRET: a shipped default would let anyone forge
+ * seller/admin tokens, so boot fails loudly instead of degrading silently.
+ * Local development keeps the documented dev secret with a warning.
+ */
+const JWT_SECRET = (() => {
+  const fromEnv = (process.env.JWT_SECRET || '').trim();
+  if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'JWT_SECRET is required when NODE_ENV=production. Set it in the environment before starting DiDwa.',
+    );
+  }
+  console.warn('[auth] JWT_SECRET is not set - signing with the development secret. Never deploy like this.');
+  return DEV_SECRET;
+})();
 
 /* ---------------------------------- Issue ---------------------------------- */
 
@@ -36,10 +55,15 @@ export function issueAdminToken(admin) {
 
 /* ------------------------------ Verify & guard ----------------------------- */
 
+/**
+ * Tokens are read from the Authorization header ONLY. A `?token=` query
+ * parameter was previously accepted, which leaked credentials into access
+ * logs, browser history and Referer headers. Public receipt links use their
+ * own HMAC share token instead (see routes/whatsappInvoiceRoutes.js).
+ */
 function readToken(req) {
   const header = req.headers.authorization || '';
   if (header.startsWith('Bearer ')) return header.slice(7).trim();
-  if (req.query && typeof req.query.token === 'string') return req.query.token;
   return null;
 }
 
@@ -57,16 +81,39 @@ export function requireAuth(req, res, next) {
   }
 }
 
-/** Platform administrator only. */
-export function requireAdmin(req, res, next) {
-  requireAuth(req, res, (err) => {
-    if (err) return err;
-    if (req.auth?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Platform administrator access required.' });
+/**
+ * Platform administrator only.
+ *
+ * The token's ADMIN role is not enough on its own: the subject must also exist
+ * in `platform_admins`, so a leaked long-lived admin token can be revoked by
+ * deleting (or rotating) the row and a hand-made token with role=ADMIN is
+ * useless. Admins are created with `npm run admin:create` and sign in through
+ * POST /api/admin/login.
+ */
+export async function requireAdmin(req, res, next) {
+  const token = readToken(req);
+  if (!token) return res.status(401).json({ error: 'Authentication required.' });
+  let payload;
+  try {
+    payload = jwt.verify(token, JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Session expired or invalid. Please sign in again.' });
+  }
+  if (payload?.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Platform administrator access required.' });
+  }
+  try {
+    const { rows } = await query('SELECT id FROM platform_admins WHERE id = $1 LIMIT 1', [payload.sub]);
+    if (!rows[0]) {
+      return res.status(403).json({ error: 'This administrator account no longer has access.' });
     }
-    next();
-  });
+    req.auth = payload;
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 }
+
 
 /**
  * Seller routes: loads the authenticated store onto req.store so downstream

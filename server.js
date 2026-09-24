@@ -17,6 +17,7 @@
  *   /api/orders      WhatsApp commerce + PDF receipts
  *   /api/inventory   Multi-variant stock + low-stock SMS
  *   /api/domains     Subdomain / custom-domain routing + SSL hook
+ *   /api/admin       Platform administrator login (platform_admins)
  */
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -34,6 +35,7 @@ import whatsappInvoiceRoutes, { whatsappRouter } from './routes/whatsappInvoiceR
 import inventoryRoutes from './routes/inventoryRoutes.js';
 import domainRoutes from './routes/domainRoutes.js';
 import { webhookRouter } from './routes/domainRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import billingCronRoute from './routes/billingCronRoute.js';
 import themeRoutes from './routes/themeRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
@@ -48,6 +50,28 @@ const ON_VERCEL = Boolean(process.env.VERCEL);
 
 /* --------------------------------- Core middleware -------------------------- */
 app.disable('x-powered-by');
+// Conservative baseline headers without adding another runtime dependency.
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-ancestors 'self'");
+  next();
+});
+const buckets = new Map();
+app.use((req, res, next) => {
+  const now = Date.now();
+  const key = req.ip || req.socket.remoteAddress || 'unknown';
+  const old = buckets.get(key) || { started: now, count: 0 };
+  if (now - old.started >= 60_000) { old.started = now; old.count = 0; }
+  old.count += 1;
+  buckets.set(key, old);
+  res.setHeader('RateLimit-Limit', '120');
+  res.setHeader('RateLimit-Remaining', String(Math.max(0, 120 - old.count)));
+  if (old.count > 120) return res.status(429).json({ error: 'Too many requests. Try again shortly.' });
+  next();
+});
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
@@ -84,6 +108,7 @@ app.use('/api/orders', whatsappInvoiceRoutes);
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/domains', domainRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/cron', billingCronRoute);
 // Hubtel payment webhook — must be at /api/webhooks/hubtel (called by Hubtel infra)
 app.use('/api/webhooks', webhookRouter);

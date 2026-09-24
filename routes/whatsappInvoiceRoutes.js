@@ -13,6 +13,7 @@ import jwt from 'jsonwebtoken';
 import { pool, query, withTransaction } from '../config/database.js';
 import { requireSeller } from '../middleware/authMiddleware.js';
 import { buildOrderReceiptPdf } from '../services/pdfService.js';
+import { transitionOrder } from '../services/orderLifecycle.js';
 import {
   normalizeGhPhone, generateOrderNumber, formatGhs,
   pointsForSpend, toIntOr, money,
@@ -20,7 +21,18 @@ import {
 
 const router = Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'didwa-dev-secret';
+/* The receipt share-link HMAC must use the same secret that signed session
+ * tokens. authMiddleware refuses to boot in production without JWT_SECRET,
+ * so this module must not fall back to a hard-coded dev secret either. */
+const JWT_SECRET = (() => {
+  const fromEnv = (process.env.JWT_SECRET || '').trim();
+  if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is required when NODE_ENV=production (receipt share-links).');
+  }
+  console.warn('[orders] JWT_SECRET is not set - receipt share-links use the development secret. Never deploy like this.');
+  return 'didwa-dev-secret';
+})();
 const PAID_SET = "'PAID','FULFILLED','DELIVERED'";
 
 /* Stable receipt share-links: HMAC(orderId) lets buyers re-download a PDF
@@ -210,12 +222,16 @@ router.get('/', requireSeller, async (req, res, next) => {
   }
 });
 
-/* Mark PAID (wallet credit + loyalty award) / FULFILLED / CANCELLED (restock). */
+/* Mark PAID (wallet credit + loyalty award) / FULFILLED / CANCELLED (restock).
+ * Delegates to the shared lifecycle in services/orderLifecycle.js - the SAME
+ * canonical transition the fulfilment console uses, so both UIs move one
+ * ledger. PENDING -> FULFILLED/DELIVERED without a recorded payment is
+ * rejected inside transitionOrder (prevents unpaid "fulfilled" orders). */
 router.patch('/:id/status', requireSeller, async (req, res, next) => {
   const client = await pool.connect();
   try {
-    const status = String(req.body?.status || '').toUpperCase();
-    if (!['PAID', 'FULFILLED', 'DELIVERED', 'CANCELLED'].includes(status)) {
+    const nextStatus = String(req.body?.status || '').toUpperCase();
+    if (!['PAID', 'FULFILLED', 'DELIVERED', 'CANCELLED'].includes(nextStatus)) {
       client.release();
       return res.status(400).json({ error: 'Status must be PAID, FULFILLED, DELIVERED or CANCELLED.' });
     }
@@ -231,88 +247,28 @@ router.patch('/:id/status', requireSeller, async (req, res, next) => {
       client.release();
       return res.status(404).json({ error: 'Order not found.' });
     }
-    if (order.status === 'CANCELLED') {
-      await client.query('ROLLBACK');
-      client.release();
-      return res.status(409).json({ error: 'Cancelled orders cannot change status.' });
-    }
-    if (order.status === status) {
-      await client.query('ROLLBACK');
-      client.release();
-      return res.status(409).json({ error: `Order is already ${status}.` });
-    }
 
-    /* ---- Cancellation: restock reserved units ---- */
-    if (status === 'CANCELLED') {
-      const items = await client.query(
-        'SELECT variant_id, quantity FROM order_items WHERE order_id = $1 AND variant_id IS NOT NULL',
-        [order.id],
-      );
-      for (const it of items.rows) {
-        await client.query(
-          `UPDATE product_variants
-              SET stock_quantity = stock_quantity + $2,
-                  updated_at = NOW(),
-                  low_stock_alert_sent = CASE
-                    WHEN stock_quantity + $2 > low_stock_threshold THEN FALSE
-                    ELSE low_stock_alert_sent END
-            WHERE id = $1`,
-          [it.variant_id, it.quantity],
-        );
-      }
-    }
-
-    /* ---- PAID confirmation: credit wallet + award loyalty ---- */
-    let pointsAwarded = 0;
-    if (status === 'PAID' && !['PAID', 'FULFILLED', 'DELIVERED'].includes(order.status)) {
-      const cfg = await client.query(
-        'SELECT loyalty_points_per_ghs FROM stores WHERE id = $1',
-        [req.auth.sub],
-      );
-      pointsAwarded = pointsForSpend(order.total, cfg.rows[0].loyalty_points_per_ghs);
-
-      await client.query(
-        'UPDATE stores SET available_balance = available_balance + $2 WHERE id = $1',
-        [req.auth.sub, order.total],
-      );
-
-      if (order.customer_phone) {
-        await client.query(
-          `INSERT INTO customers (store_id, name, phone, loyalty_points, total_spent, orders_count)
-           VALUES ($1,$2,$3,$4,$5,1)
-           ON CONFLICT (store_id, phone) DO UPDATE SET
-             loyalty_points = customers.loyalty_points + $4,
-             total_spent    = customers.total_spent + $5,
-             orders_count   = customers.orders_count + 1,
-             name           = COALESCE(customers.name, EXCLUDED.name)`,
-          [req.auth.sub, order.customer_name, order.customer_phone, pointsAwarded, order.total],
-        );
-      }
-    }
-
-    const upd = await client.query(
-      `UPDATE orders
-          SET status = $3,
-              paid_at = CASE WHEN $3 IN ('PAID','FULFILLED','DELIVERED') AND paid_at IS NULL
-                             THEN NOW() ELSE paid_at END,
-              points_earned = points_earned + $4
-        WHERE id = $1 AND store_id = $2
-        RETURNING status`,
-      [order.id, req.auth.sub, status, pointsAwarded],
-    );
+    const moved = await transitionOrder(client, {
+      order,
+      storeId: req.auth.sub,
+      next: nextStatus,
+    });
 
     await client.query('COMMIT');
     client.release();
 
     res.json({
-      message: `Order ${order.order_number} marked ${status}.` +
-        (pointsAwarded > 0 ? ` ${pointsAwarded} loyalty points awarded.` : ''),
-      status: upd.rows[0].status,
-      pointsAwarded,
+      message: `Order ${order.order_number} marked ${moved.status}.` +
+        (moved.pointsAwarded > 0 ? ` ${moved.pointsAwarded} loyalty points awarded.` : ''),
+      status: moved.status,
+      pointsAwarded: moved.pointsAwarded,
     });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch { /* noop */ }
     client.release();
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message, code: err.code });
+    }
     next(err);
   }
 });

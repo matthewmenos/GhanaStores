@@ -17,7 +17,7 @@
 import { query } from '../config/database.js';
 
 const platformDomain = () =>
-  (process.env.PLATFORM_DOMAIN || 'didwaghana.com').replace(/^https?:\/\//, '');
+  (process.env.PLATFORM_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
 const rootDomain = () => (process.env.ROOT_DOMAIN || 'localhost:5173').split(':')[0];
 
 /** Columns consumed by the storefront + WhatsApp order flows. */

@@ -18,7 +18,6 @@ import {
   Wallet, X, Zap,
 } from 'lucide-react';
 import { LogoLockup } from '../components/icons.jsx';
-import { PLATFORM_DOMAIN } from '../config.js';
 
 /** Smooth-scroll to an in-page section id. */
 function goTo(id) {

@@ -64,6 +64,30 @@ router.post('/sales', requireActiveSeller, async (req, res, next) => {
   const client = await pool.connect();
   try {
     const b = req.body || {};
+    const clientReference = String(b.idempotencyKey || '').trim().slice(0, 120) || null;
+    if (clientReference) {
+      const existing = await query(
+        `SELECT id, order_number, total, subtotal, discount_amount,
+                points_earned, points_redeemed, notes
+           FROM orders WHERE store_id = $1 AND client_reference = $2`,
+        [req.auth.sub, clientReference],
+      );
+      if (existing.rows[0]) {
+        client.release();
+        return res.status(200).json({
+          message: `Sale ${existing.rows[0].order_number} was already recorded.`,
+          order: {
+            ...existing.rows[0],
+            order_number: existing.rows[0].order_number,
+            total: Number(existing.rows[0].total),
+            subtotal: Number(existing.rows[0].subtotal),
+            discount: Number(existing.rows[0].discount_amount),
+            pointsEarned: existing.rows[0].points_earned,
+            pointsRedeemed: existing.rows[0].points_redeemed,
+          },
+        });
+      }
+    }
     const items = Array.isArray(b.items) ? b.items : [];
     const paymentMethod = ['CASH', 'MOMO'].includes(b.paymentMethod) ? b.paymentMethod : 'CASH';
     if (items.length === 0) {
@@ -148,7 +172,7 @@ router.post('/sales', requireActiveSeller, async (req, res, next) => {
     }
 
     // Phase 2 continues on the SAME open transaction/client.
-    const ctx = { b, paymentMethod, customerPhone, lineItems, subtotal, alertCandidates };
+    const ctx = { b, clientReference, paymentMethod, customerPhone, lineItems, subtotal, alertCandidates };
     await finishPosSale(req, res, client, ctx);
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch { /* noop */ }
@@ -162,7 +186,7 @@ router.post('/sales', requireActiveSeller, async (req, res, next) => {
  * Ownership of COMMIT/ROLLBACK/release transfers to this function.
  */
 async function finishPosSale(req, res, client, ctx) {
-  const { b, paymentMethod, customerPhone, lineItems, subtotal, alertCandidates } = ctx;
+  const { b, clientReference, paymentMethod, customerPhone, lineItems, subtotal, alertCandidates } = ctx;
   try {
     /* ---- Loyalty config + redemption ---- */
     const storeCfg = await client.query(
@@ -226,13 +250,13 @@ async function finishPosSale(req, res, client, ctx) {
       `INSERT INTO orders
          (store_id, order_number, customer_id, customer_name, customer_phone,
           channel, payment_method, status, subtotal, discount_amount,
-          points_earned, points_redeemed, total, notes, paid_at)
-       VALUES ($1,$2,$3,$4,$5,'POS',$6,'PAID',$7,$8,$9,$10,$11,$12, NOW())
+          points_earned, points_redeemed, total, notes, paid_at, client_reference)
+       VALUES ($1,$2,$3,$4,$5,'POS',$6,'PAID',$7,$8,$9,$10,$11,$12, NOW(),$13)
        RETURNING id, order_number, total`,
       [req.auth.sub, orderNumber, customerId, b.customerName || 'Walk-in customer',
         customerPhone, paymentMethod, subtotal, discount,
-        pointsEarned, pointsRedeemed, total,
-        momoRef ? `MoMo ref ${momoRef} via ${momoProvider || 'HUBTEL'}` : (b.notes || null)],
+        pointsEarned, pointsRedeemed, total, clientReference,
+         momoRef ? `MoMo ref ${momoRef} via ${momoProvider || 'HUBTEL'}` : (b.notes || null)],
     );
     const order = orderIns.rows[0];
 
@@ -304,7 +328,7 @@ router.post('/riders/dispatch', requireActiveSeller, async (req, res, next) => {
 
     const result = await withTransaction(async (t) => {
       const orders = await t.query(
-        `SELECT id, total FROM orders
+        `SELECT id, COALESCE(NULLIF(total, 0), total_amount, 0) AS total FROM orders
           WHERE store_id = $1
             AND id = ANY($2::uuid[])
             AND payment_method = 'COD'
@@ -326,8 +350,13 @@ router.post('/riders/dispatch', requireActiveSeller, async (req, res, next) => {
          VALUES ($1,$2::jsonb,$3,$4,$5) RETURNING id, amount, status, dispatched_at`,
         [req.auth.sub, JSON.stringify(lockedIds), String(riderName).trim(), phone, amount],
       );
+      // Handing the parcel to the rider means it left the shop - but it is NOT
+      // delivered until the rider's cash is reconciled. Keep it FULFILLED and
+      // mirror order_status so the fulfilment console agrees.
       await t.query(
-        `UPDATE orders SET status = 'DELIVERED' WHERE store_id = $1 AND id = ANY($2::uuid[])`,
+        `UPDATE orders
+            SET status = 'FULFILLED', order_status = 'PROCESSING', updated_at = NOW()
+          WHERE store_id = $1 AND id = ANY($2::uuid[])`,
         [req.auth.sub, lockedIds],
       );
       return ins.rows[0];
@@ -397,6 +426,17 @@ router.post('/riders/:id/reconcile', requireActiveSeller, async (req, res, next)
       'UPDATE stores SET available_balance = available_balance + $2 WHERE id = $1',
       [req.auth.sub, transit.amount],
     );
+    // The parcel truly reached the buyer: close the transit AND mark every
+    // carried order DELIVERED (mirroring order_status) in the same commit.
+    const parsedIds = Array.isArray(transit.order_ids) ? transit.order_ids : [];
+    if (parsedIds.length > 0) {
+      await client.query(
+        `UPDATE orders
+            SET status = 'DELIVERED', order_status = 'DELIVERED', updated_at = NOW()
+          WHERE store_id = $1 AND id = ANY($2::uuid[])`,
+        [req.auth.sub, parsedIds],
+      );
+    }
     const done = await client.query(
       `UPDATE rider_transits SET status = 'RECONCILED', reconciled_at = NOW()
         WHERE id = $1 RETURNING amount, reconciled_at`,

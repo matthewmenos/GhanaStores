@@ -29,6 +29,7 @@ import SellerThemeMarketplace from './pages/SellerThemeMarketplace.jsx';
 import ThemeDemoViewer from './pages/ThemeDemoViewer.jsx';
 import ThemeCustomizer from './pages/ThemeCustomizer.jsx';
 import DomainManager from './pages/DomainManager.jsx';
+import LiveStorefront from './pages/LiveStorefront.jsx';
 
 const LOGIN_HASH = '#/login';
 
@@ -49,6 +50,12 @@ export default function App() {
   /* Preselected tab when the welcome page opens the auth screen. */
   const [authMode, setAuthMode] = useState('register');
   const route = useHashRoute();
+  const host = window.location.hostname.toLowerCase();
+  const platform = String(import.meta.env.VITE_PLATFORM_DOMAIN || '').replace(/^https?:\/\//, '').split('/')[0];
+  const isTenantHost = Boolean(
+    platform && host !== platform && host !== `www.${platform}`
+      && !host.endsWith('.vercel.app') && !host.includes('localhost'),
+  );
 
   /* Refresh trial status whenever the dashboard mounts or route changes. */
   useEffect(() => {
@@ -123,6 +130,9 @@ export default function App() {
     case '#/privacy': return <PrivacyPage authed={authed} />;
     default: break;
   }
+
+  /* Tenant storefront hosts are public and never require seller auth. */
+  if (isTenantHost) return <LiveStorefront />;
 
   /* PWA starts from the login page for unauthenticated visitors. */
   if (!authed) {

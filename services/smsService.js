@@ -61,8 +61,12 @@ function formatDate(tzDate) {
 
 /** Registration welcome: storefront URL + trial expiry (Module 1). */
 export async function sendWelcomeSms(store) {
-  const platform = process.env.PLATFORM_DOMAIN || 'didwaghana.com';
-  const storefront = `https://${store.subdomain_slug}.${platform.replace(/^https?:\/\//, '')}`;
+  const platformDomain = (process.env.PLATFORM_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  const storefront = store.custom_domain
+    ? `https://${String(store.custom_domain).replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
+    : (store.subdomain_slug && platformDomain
+      ? `https://${store.subdomain_slug}.${platformDomain}`
+      : 'your DiDwa storefront');
   const expires = formatDate(store.trial_ends_at);
   const message =
     `Welcome to DiDwa, ${store.name}!\n` +

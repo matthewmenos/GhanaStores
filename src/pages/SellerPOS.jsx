@@ -4,7 +4,7 @@
  * and one-click rider cash reconciliation into the merchant wallet.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { api, ghs } from '../api.js';
+import { api, ghs, queueOfflineSale, flushOfflineSales } from '../api.js';
 import { redeemValue } from '../loyalty.js';
 import StatusBadge from '../components/UI/StatusBadge.jsx';
 import {
@@ -31,6 +31,13 @@ export default function SellerPOS() {
   const [riderName, setRiderName] = useState('');
   const [riderPhone, setRiderPhone] = useState('');
   const [codOrders, setCodOrders] = useState([]);
+
+  useEffect(() => {
+    const retryPending = () => flushOfflineSales().catch(() => {});
+    retryPending();
+    window.addEventListener('online', retryPending);
+    return () => window.removeEventListener('online', retryPending);
+  }, []);
 
   useEffect(() => {
     api.get('/api/inventory/products').then((d) => setProducts(d.products || []))
@@ -96,15 +103,18 @@ export default function SellerPOS() {
     if (cart.length === 0 || busy) return;
     setBusy(true);
     setFeedback(null);
+    const idempotencyKey = `pos-${crypto.randomUUID()}`;
+    const payload = {
+      idempotencyKey,
+      items: cart.map((c) => ({ variantId: c.variantId, quantity: c.qty })),
+      paymentMethod,
+      momoNetwork,
+      customerPhone: customerPhone || undefined,
+      customerName: customerName || undefined,
+      redeemPoints: redeemPoints || undefined,
+    };
     try {
-      const d = await api.post('/api/pos/sales', {
-        items: cart.map((c) => ({ variantId: c.variantId, quantity: c.qty })),
-        paymentMethod,
-        momoNetwork,
-        customerPhone: customerPhone || undefined,
-        customerName: customerName || undefined,
-        redeemPoints: redeemPoints || undefined,
-      });
+      const d = await api.post('/api/pos/sales', payload);
       setFeedback({ ok: true, msg: `${d.order.order_number} recorded - ${ghs(d.order.total)} added to wallet.` });
       setCart([]);
       setCustomerPhone(''); setCustomerName('');
@@ -112,7 +122,14 @@ export default function SellerPOS() {
       const fresh = await api.get('/api/inventory/products');
       setProducts(fresh.products || []);
     } catch (e) {
-      setFeedback({ ok: false, msg: e.message });
+      if (!navigator.onLine && paymentMethod === 'CASH') {
+        queueOfflineSale({ idempotencyKey, payload, queuedAt: new Date().toISOString() });
+        setFeedback({ ok: true, msg: 'You are offline. This cash sale was queued and will sync when you reconnect.' });
+        setCart([]);
+        setCustomerPhone(''); setCustomerName(''); setRedeemPoints(0); setLoyaltyInfo(null);
+      } else {
+        setFeedback({ ok: false, msg: e.message });
+      }
     } finally {
       setBusy(false);
     }

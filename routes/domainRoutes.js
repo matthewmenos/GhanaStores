@@ -20,7 +20,7 @@ const router = Router();
 // middleware/domainMiddleware.js (per the module spec).
 export const resolveStoreFromHost = resolveTenantStore;
 
-const PLATFORM_DOMAIN = (process.env.PLATFORM_DOMAIN || 'didwaghana.com').replace(/^https?:\/\//, '');
+const PLATFORM_DOMAIN = (process.env.PLATFORM_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
 const ROOT_DOMAIN = (process.env.ROOT_DOMAIN || 'localhost:5173').split(':')[0];
 // Falls back to a subdomain OF THE PLATFORM DOMAIN so white-label deploys
 // only need to set PLATFORM_DOMAIN (override with an explicit CNAME_TARGET).
@@ -35,10 +35,10 @@ const DOMAIN_RE = /^(\*\.)?([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
 // Lets the SPA ask "who owns the domain I am browsing?" (storefront header).
 router.get('/resolve', async (req, res, next) => {
   try {
-    if (!req.storeFromHost) {
+    if (!req.tenantStore) {
       return res.json({ tenant: null, ...req.tenantInfo });
     }
-    const s = req.storeFromHost;
+    const s = req.tenantStore;
     res.json({
       tenant: {
         id: s.id,
@@ -61,7 +61,9 @@ router.get('/storefront/:slug/products', async (req, res, next) => {
   try {
     const s = await query(
       `SELECT id, name, subdomain_slug, whatsapp_number, phone, momo_number, currency, status
-         FROM stores WHERE subdomain_slug = $1 LIMIT 1`,
+         FROM stores
+        WHERE subdomain_slug = $1 OR custom_domain = $1
+        LIMIT 1`,
       [String(req.params.slug).toLowerCase()],
     );
     const store = s.rows[0];
@@ -411,20 +413,110 @@ export { router as domainRouter };
 
 /** Standalone webhook router — mounted at /api/webhooks in server.js */
 import { Router as WebhookRouter } from 'express';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { normalizeGhPhone } from '../utils/helpers.js';
+
 export const webhookRouter = WebhookRouter();
+
+/**
+ * Constant-time string compare that never throws on length mismatch.
+ */
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Authenticate a gateway webhook call.
+ *
+ * The domain/payment webhook can mark a purchased domain ACTIVE and attach it
+ * to a store, so an unauthenticated endpoint would let anyone claim a domain.
+ * Accepted proofs, in order:
+ *   1. HMAC-SHA256 of the raw request body in `x-hubtel-signature` /
+ *      `x-webhook-signature` (hex or base64), keyed by HUBTEL_WEBHOOK_SECRET.
+ *   2. The shared secret itself in `x-webhook-secret` or `?secret=`.
+ *   3. `Authorization: Bearer <HUBTEL_WEBHOOK_SECRET>`.
+ *
+ * When HUBTEL_WEBHOOK_SECRET is unset the request is refused in production and
+ * accepted with a loud warning in development (so local simulators still work).
+ */
+function verifyWebhook(req) {
+  const secret = process.env.HUBTEL_WEBHOOK_SECRET || '';
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      return { ok: false, reason: 'HUBTEL_WEBHOOK_SECRET is not configured.' };
+    }
+    console.warn('[webhook] HUBTEL_WEBHOOK_SECRET is not set - accepting unverified webhook (development only).');
+    return { ok: true, insecure: true };
+  }
+
+  const rawBody = req.rawBody
+    ? (Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(String(req.rawBody)))
+    : Buffer.from(JSON.stringify(req.body || {}));
+
+  const signature = String(
+    req.get('x-hubtel-signature') || req.get('x-webhook-signature') || '',
+  ).trim();
+  if (signature) {
+    const hex = createHmac('sha256', secret).update(rawBody).digest('hex');
+    const b64 = createHmac('sha256', secret).update(rawBody).digest('base64');
+    if (safeEqual(signature, hex) || safeEqual(signature, b64)) return { ok: true };
+    return { ok: false, reason: 'Signature mismatch.' };
+  }
+
+  const provided = String(req.get('x-webhook-secret') || req.query?.secret || '').trim()
+    || String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (provided && safeEqual(provided, secret)) return { ok: true };
+
+  return { ok: false, reason: 'Missing or invalid webhook credentials.' };
+}
+
 webhookRouter.post('/hubtel', async (req, res) => {
   try {
+    const auth = verifyWebhook(req);
+    if (!auth.ok) {
+      console.warn('[webhook] rejected Unverified Hubtel webhook:', auth.reason);
+      return res.status(401).json({ received: false, error: auth.reason });
+    }
+
     const result = await domainService.handleHubtelWebhook(req.body || {});
 
     if (result.processed && result.domainName) {
-      await query(
-        `UPDATE store_domains SET status = 'ACTIVE', registered_at = NOW(), updated_at = NOW()
-         WHERE store_id = $1 AND LOWER(domain_name) = LOWER($2)`,
+      /* Guard: a successfully paid purchase may only activate the domain for a
+         store that actually created the pending purchase, and the domain must
+         stay exclusively owned (stores.custom_domain is UNIQUE). */
+      const owned = await query(
+        `SELECT 1 FROM store_domains
+          WHERE store_id = $1 AND LOWER(domain_name) = LOWER($2)
+            AND provider = 'PURCHASED'
+          LIMIT 1`,
         [result.storeId, result.domainName],
       );
+      if (!owned.rows[0]) {
+        console.warn('[webhook] no pending purchase for', result.domainName, '-> ignoring');
+        return res.json({ received: true, processed: false, reason: 'unknown_purchase' });
+      }
+
       await query(
-        'UPDATE stores SET custom_domain = $1 WHERE id = $2',
+        `UPDATE store_domains SET status = 'ACTIVE', registered_at = NOW(), updated_at = NOW()
+          WHERE store_id = $1 AND LOWER(domain_name) = LOWER($2)`,
+        [result.storeId, result.domainName],
+      );
+
+      // Never steal a domain already attached to a different tenant.
+      const taken = await query(
+        'SELECT 1 FROM stores WHERE custom_domain = $1 AND id <> $2 LIMIT 1',
         [result.domainName, result.storeId],
+      );
+      if (taken.rows[0]) {
+        console.warn('[webhook] domain already attached to another store:', result.domainName);
+        return res.json({ received: true, processed: false, reason: 'domain_taken' });
+      }
+      await query(
+        `UPDATE stores SET custom_domain = LOWER($1) WHERE id = $2`,
+        [String(result.domainName).toLowerCase().trim(), result.storeId],
       );
     }
 
@@ -434,4 +526,3 @@ webhookRouter.post('/hubtel', async (req, res) => {
     return res.status(200).json({ received: true, processed: false });
   }
 });
-

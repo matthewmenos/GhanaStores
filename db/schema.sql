@@ -39,6 +39,8 @@ CREATE OR REPLACE FUNCTION set_store_trial_period() RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.trial_ends_at IS NULL THEN
     NEW.trial_ends_at := NOW() + INTERVAL '14 days';
+  END IF;
+  IF NEW.grace_ends_at IS NULL THEN
     NEW.grace_ends_at := NEW.trial_ends_at + INTERVAL '3 days';
   END IF;
   RETURN NEW;
@@ -108,6 +110,7 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_id     UUID REFERENCES customers(id) ON DELETE SET NULL,
   customer_name   TEXT,
   customer_phone  TEXT,
+  customer_address TEXT,
   channel         TEXT NOT NULL DEFAULT 'ONLINE_WHATSAPP'
                     CHECK (channel IN ('ONLINE_WHATSAPP','POS','COD_RIDER')),
   payment_method  TEXT NOT NULL DEFAULT 'MOMO'
@@ -124,21 +127,57 @@ CREATE TABLE IF NOT EXISTS orders (
   rider_phone     TEXT,
   notes           TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  paid_at         TIMESTAMPTZ
+  paid_at         TIMESTAMPTZ,
+  client_reference TEXT
 );
 CREATE INDEX IF NOT EXISTS orders_store_created_idx ON orders (store_id, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS orders_number_idx ON orders (order_number);
+CREATE UNIQUE INDEX IF NOT EXISTS orders_client_reference_idx
+  ON orders (store_id, client_reference) WHERE client_reference IS NOT NULL;
+-- Backward-compatible mirrors for older storefront/order readers. Canonical
+-- order lifecycle columns are status, subtotal, total and paid_at.
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS customer_address TEXT,
+  ADD COLUMN IF NOT EXISTS order_status TEXT NOT NULL DEFAULT 'PENDING',
+  ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'PENDING',
+  ADD COLUMN IF NOT EXISTS total_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS client_reference TEXT;
 
+UPDATE orders
+   SET order_status = CASE
+         WHEN status = 'DELIVERED' THEN 'DELIVERED'
+         WHEN status = 'CANCELLED' THEN 'CANCELLED'
+         WHEN status IN ('PAID','FULFILLED') THEN 'PROCESSING'
+         ELSE 'PENDING' END,
+       payment_status = CASE WHEN status IN ('PAID','FULFILLED','DELIVERED') THEN 'PAID' ELSE 'PENDING' END,
+       total_amount = total
+ WHERE order_status IS DISTINCT FROM CASE
+         WHEN status = 'DELIVERED' THEN 'DELIVERED'
+         WHEN status = 'CANCELLED' THEN 'CANCELLED'
+         WHEN status IN ('PAID','FULFILLED') THEN 'PROCESSING'
+         ELSE 'PENDING' END
+    OR payment_status IS DISTINCT FROM CASE WHEN status IN ('PAID','FULFILLED','DELIVERED') THEN 'PAID' ELSE 'PENDING' END
+    OR total_amount IS DISTINCT FROM total;
+
+-- ------------------------------------------------------------ order items
 CREATE TABLE IF NOT EXISTS order_items (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id       UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   order_id       UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  product_id     UUID REFERENCES products(id) ON DELETE SET NULL,
   variant_id     UUID REFERENCES product_variants(id) ON DELETE SET NULL,
   product_name   TEXT NOT NULL,
   variant_label  TEXT,
   unit_price     NUMERIC(12,2) NOT NULL,
+  total_price    NUMERIC(12,2) NOT NULL DEFAULT 0,
   quantity       INTEGER NOT NULL CHECK (quantity > 0),
   line_total     NUMERIC(12,2) NOT NULL
+-- Existing deployments may have the legacy order_items shape.
+ALTER TABLE order_items
+  ADD COLUMN IF NOT EXISTS product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS total_price NUMERIC(12,2) NOT NULL DEFAULT 0;
+
 );
 CREATE INDEX IF NOT EXISTS order_items_order_idx ON order_items (order_id);
 
@@ -154,8 +193,8 @@ CREATE TABLE IF NOT EXISTS payouts (
   fallback_used  BOOLEAN NOT NULL DEFAULT FALSE,      -- TRUE when Hubtel retried after MTN
   mtn_status     TEXT,                                -- last MTN leg status before fallback
   status         TEXT NOT NULL DEFAULT 'APPROVED'
-                   CHECK (status IN ('APPROVED','PENDING_REVIEW','FAILED')),
-  reference      TEXT,
+                   CHECK (status IN ('APPROVED','PENDING_REVIEW','FAILED','PROCESSING')),
+  reference      TEXT UNIQUE,
   failure_reason TEXT,
   initiated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   completed_at   TIMESTAMPTZ
@@ -166,10 +205,37 @@ CREATE INDEX IF NOT EXISTS payouts_store_idx ON payouts (store_id, initiated_at 
 -- deployments gain the columns via ADD COLUMN below; fresh installs get
 -- them inline above).
 ALTER TABLE payouts
-  ADD COLUMN IF NOT EXISTS provider      TEXT NOT NULL DEFAULT 'HUBTEL'
-    CHECK (provider IN ('MTN','HUBTEL')),
+  ADD COLUMN IF NOT EXISTS provider      TEXT NOT NULL DEFAULT 'HUBTEL',
   ADD COLUMN IF NOT EXISTS fallback_used BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS mtn_status    TEXT;
+
+-- Intent-first payouts + idempotency guard. STATUS 'PROCESSING' marks a
+-- reserved-but-not-yet-disbursed intent; a UNIQUE reference stops a retried
+-- or replayed request from paying twice. Existing deployments inherit both
+-- through the guarded statements below (the CREATE INDEX is idempotent and
+-- the CHECK relaxation is applied via a rebuilt constraint only when the old
+-- one still exists).
+ALTER TABLE payouts ADD COLUMN IF NOT EXISTS reference TEXT;
+
+DO $$
+BEGIN
+  -- Relax the status CHECK to include PROCESSING on legacy tables.
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'payouts_status_check'
+  ) THEN
+    ALTER TABLE payouts DROP CONSTRAINT payouts_status_check;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'payouts_status_allowed_check'
+  ) THEN
+    ALTER TABLE payouts
+      ADD CONSTRAINT payouts_status_allowed_check
+      CHECK (status IN ('APPROVED','PENDING_REVIEW','FAILED','PROCESSING'));
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS payouts_reference_unique_idx
+  ON payouts (reference) WHERE reference IS NOT NULL;
 
 
 -- MODULE 4: cash collected by dispatch riders while in transit.
@@ -195,6 +261,32 @@ CREATE TABLE IF NOT EXISTS platform_admins (
   name           TEXT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ------------------------------------------------------------ subscription payments (Module 1)
+-- Every POST /api/billing/subscribe attempt is recorded here BEFORE the
+-- provider is charged: a crash after collection leaves a PENDING row (never a
+-- silent ACTIVE), and a UNIQUE reference stops a retried request paying twice.
+CREATE TABLE IF NOT EXISTS subscription_payments (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id          UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  plan_id           TEXT NOT NULL,
+  amount            NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+  momo_number       TEXT NOT NULL,
+  network           TEXT NOT NULL CHECK (network IN ('MTN','VODAFONE','AT')),
+  provider          TEXT NOT NULL DEFAULT 'PENDING'
+                      CHECK (provider IN ('MTN','HUBTEL','PENDING')),
+  reference         TEXT,
+  gateway_reference TEXT,
+  status            TEXT NOT NULL DEFAULT 'PENDING'
+                      CHECK (status IN ('PENDING','PAID','FAILED')),
+  failure_reason    TEXT,
+  initiated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  paid_at           TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_payments_ref_idx
+  ON subscription_payments (reference) WHERE reference IS NOT NULL;
+CREATE INDEX IF NOT EXISTS subscription_payments_store_idx
+  ON subscription_payments (store_id, initiated_at DESC);
 
 -- ------------------------------------------------------------ store domains (Module 7)
 CREATE TABLE IF NOT EXISTS store_domains (

@@ -77,10 +77,13 @@ router.get('/products', requireSeller, async (req, res, next) => {
 router.post('/products', requireSeller, async (req, res, next) => {
   try {
     const b = req.body || {};
-    if (!b.name || !b.price) {
+    if (!b.name || b.price === undefined || b.price === null || b.price === '') {
       return res.status(400).json({ error: 'Product name and base price are required.' });
     }
     const price = money(b.price);
+    if (!Number.isFinite(price) || price < 0) {
+      return res.status(400).json({ error: 'Base price must be a non-negative amount.' });
+    }
     const variants = Array.isArray(b.variants) && b.variants.length > 0
       ? b.variants
       : [{ optionName: 'Default', optionValue: 'Standard' }];
@@ -126,9 +129,12 @@ router.post('/products', requireSeller, async (req, res, next) => {
     });
 
     // Dispatch alerts AFTER commit so SMS never rolls back catalog writes.
+    // Each dispatch is also written to the audit trail, exactly like the
+    // POS/storefront and adjustment paths do.
     if (alertCandidates.length > 0) {
       const storeRes = await query('SELECT name, phone FROM stores WHERE id = $1', [req.auth.sub]);
       sendLowStockAlertSms(storeRes.rows[0], alertCandidates).catch(() => {});
+      recordLowStockAlerts(req.auth.sub, alertCandidates).catch(() => {});
     }
 
     res.status(201).json({ message: 'Product added to catalog.', product: result });
@@ -141,21 +147,29 @@ router.post('/products', requireSeller, async (req, res, next) => {
 router.put('/products/:id', requireSeller, async (req, res, next) => {
   try {
     const b = req.body || {};
+    const price = b.price === undefined || b.price === null || b.price === ''
+      ? null
+      : money(b.price);
+    if (price !== null && (!Number.isFinite(price) || price < 0)) {
+      return res.status(400).json({ error: 'Base price must be a non-negative amount.' });
+    }
     const { rows } = await query(
       `UPDATE products
           SET name = COALESCE($3, name),
               description = COALESCE($4, description),
               category = COALESCE($5, category),
               image_url = COALESCE($6, image_url),
-              is_active = COALESCE($7, is_active),
+              price = COALESCE($7, price),
+              is_active = COALESCE($8, is_active),
               updated_at = NOW()
         WHERE id = $1 AND store_id = $2
-        RETURNING id, name, is_active`,
+        RETURNING id, name, price, is_active`,
       [req.params.id, req.auth.sub,
         b.name ? String(b.name).trim() : null,
         b.description ?? null,
         b.category ?? null,
         b.imageUrl ?? null,
+        price,
         typeof b.isActive === 'boolean' ? b.isActive : null],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Product not found.' });
@@ -214,14 +228,18 @@ router.patch('/variants/:id/stock', requireSeller, async (req, res, next) => {
     }
 
     let smsCandidate = null;
+    let productName = 'Variant';
     const updated = await withTransaction(async (t) => {
       const lock = await t.query(
-        `SELECT * FROM product_variants
-          WHERE id = $1 AND store_id = $2 FOR UPDATE`,
+        `SELECT v.*, p.name AS product_name
+           FROM product_variants v
+           JOIN products p ON p.id = v.product_id
+          WHERE v.id = $1 AND v.store_id = $2 FOR UPDATE`,
         [req.params.id, req.auth.sub],
       );
       const variant = lock.rows[0];
       if (!variant) throw Object.assign(new Error('Variant not found.'), { status: 404 });
+      productName = variant.product_name || productName;
 
       let newQty = Number(variant.stock_quantity);
       if (absolute != null) newQty = Math.max(0, absolute);
@@ -250,7 +268,7 @@ router.patch('/variants/:id/stock', requireSeller, async (req, res, next) => {
     if (smsCandidate) {
       const storeRes = await query('SELECT name, phone FROM stores WHERE id = $1', [req.auth.sub]);
       sendLowStockAlertSms(storeRes.rows[0], [
-        { ...smsCandidate, product_name: 'Variant' },
+        { ...smsCandidate, product_name: productName },
       ]).catch(() => {});
       recordLowStockAlerts(req.auth.sub, [smsCandidate]).catch(() => {});
     }

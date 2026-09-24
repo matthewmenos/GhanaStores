@@ -27,8 +27,28 @@ if (!process.env.JWT_SECRET) {
 }
 
 if (role === 'ADMIN') {
-  const token = issueAdminToken({ id: 'admin', email: 'admin@didwa.com', name: 'Platform Admin' });
-  console.log(`ADMIN_TOKEN (expires in 7d):\n${token}`);
+  // requireAdmin checks the token subject against platform_admins, so the
+  // token must carry a real administrator row (create one with
+  // `npm run admin:create`). The email argument is optional.
+  const adminEmail = String(email || process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  const { rows } = adminEmail
+    ? await query(
+      `SELECT id, email, name FROM platform_admins WHERE LOWER(email) = $1 LIMIT 1`,
+      [adminEmail],
+    )
+    : await query(`SELECT id, email, name FROM platform_admins ORDER BY created_at ASC LIMIT 1`);
+
+  const admin = rows[0];
+  if (!admin) {
+    console.error('No platform administrator found.');
+    console.error('Create one first:  npm run admin:create -- admin@didwaghana.com "long-passphrase" "Ops Lead"');
+    process.exit(1);
+  }
+
+  const token = issueAdminToken(admin);
+  console.log(`\nADMIN: ${admin.name || 'Platform Admin'} <${admin.email}> (${admin.id})`);
+  console.log('ADMIN_TOKEN (expires in 7d):\n' + token + '\n');
+  console.log('Prefer POST /api/admin/login for day-to-day access - minting is for ops tooling.');
   process.exit(0);
 }
 

@@ -3,8 +3,11 @@
  * Strategy:
  *   - Navigations & static assets: stale-while-revalidate.
  *   - /api/*: network-only (financial data must never be served stale).
- * The POS page queues failed sale submissions in localStorage and retries
- * when connectivity returns (see POSCart.jsx).
+ *   - Cash POS sales that fail while offline are queued by the active POS
+ *     screen in localStorage and retried when the browser comes back online.
+ *   - MoMo sales are never queued: an external payment may already have been
+ *     accepted even when the client loses its connection, so the seller must
+ *     reconcile that transaction manually before retrying.
  */
 const CACHE = 'didwa-v1';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg'];

@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getCachedStore, ghs } from '../api.js';
+import { storefrontUrl } from '../config.js';
 import {
   CheckCircle2, ChevronRight, Copy, CreditCard, ExternalLink,
   Globe, Link2, Loader2, RefreshCw, Search, ShoppingCart,
@@ -16,8 +17,6 @@ import {
 /* =========================================================================
  * Constants
  * ========================================================================= */
-
-const PLATFORM_DOMAIN = import.meta.env.VITE_PLATFORM_DOMAIN || 'didwaghana.com';
 
 const DOMAIN_RE = /^(\*\.)?([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
 
@@ -70,8 +69,9 @@ function Card({ children, className = '' }) {
  * Primary Subdomain Header Card
  * ========================================================================= */
 
-function PrimaryDomainCard({ subdomain }) {
-  const primaryUrl = `https://${subdomain}.${PLATFORM_DOMAIN}`;
+function PrimaryDomainCard({ subdomain, customDomain }) {
+  const primaryUrl = storefrontUrl({ subdomain_slug: subdomain, custom_domain: customDomain });
+  const primaryHost = primaryUrl.replace(/^https?:\/\//, '');
 
   return (
     <Card className="overflow-hidden">
@@ -82,7 +82,7 @@ function PrimaryDomainCard({ subdomain }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-charcoal">{subdomain}.{PLATFORM_DOMAIN}</span>
+              <span className="text-sm font-bold text-charcoal">{primaryHost || 'Storefront URL unavailable'}</span>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
                 <CheckCircle2 size={11} aria-hidden="true" />
                 Primary Route
@@ -423,8 +423,11 @@ function BuyNewDomainTab({ storeId = null }) {
  * Main DomainManager Component
  * ========================================================================= */
 
-export default function DomainManager({ subdomain = 'my-store', storeId = null }) {
+export default function DomainManager({ subdomain, storeId = null }) {
   const [activeTab, setActiveTab] = useState('connect');
+  const cachedStore = getCachedStore();
+  const resolvedSubdomain = subdomain || cachedStore?.subdomain_slug;
+  const resolvedCustomDomain = cachedStore?.custom_domain || null;
   const resolvedStoreId = storeId ?? getCachedStore()?.id ?? null;
 
   return (
@@ -435,7 +438,7 @@ export default function DomainManager({ subdomain = 'my-store', storeId = null }
         </h1>
         <p className="mt-1 text-sm text-slate-400">Connect an existing domain or buy a new one for your store.</p>
       </div>
-      <PrimaryDomainCard subdomain={subdomain} />
+      <PrimaryDomainCard subdomain={resolvedSubdomain} customDomain={resolvedCustomDomain} />
       <div className="flex gap-1 rounded-xl border border-slate-200 bg-mist/60 p-1">
         <button type="button" onClick={() => setActiveTab('connect')}
           className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${activeTab === 'connect' ? 'bg-white text-charcoal shadow-card' : 'text-slate-500 hover:text-charcoal'}`}>
