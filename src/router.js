@@ -9,7 +9,11 @@ export function navigate(path, { replace = false } = {}) {
 }
 
 export function usePathname() {
-  const read = () => window.location.pathname || '/';
+  const read = () => {
+    const path = window.location.pathname || '/';
+    if (path === '/' || path === '') return '/';
+    return path.replace(/\/+$/, '') || '/';
+  };
   const [pathname, setPathname] = useState(read);
   useEffect(() => {
     const onChange = () => setPathname(read());

@@ -9,7 +9,7 @@
  *     accepted even when the client loses its connection, so the seller must
  *     reconcile that transaction manually before retrying.
  */
-const CACHE = 'didwa-v1';
+const CACHE = 'didwa-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
