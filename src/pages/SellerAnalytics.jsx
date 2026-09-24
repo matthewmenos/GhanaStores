@@ -70,7 +70,7 @@ export default function SellerAnalytics() {
       </div>
 
       {operations.lowStockCount > 0 && (
-        <a href="#/inventory" className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-100">
+        <a href="/inventory" className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-100">
           <IconBox size={17} className="text-amber-600" />
           {operations.lowStockCount} variant{operations.lowStockCount === 1 ? '' : 's'} low on stock - SMS alerts sent.
           <span className="ml-auto text-xs underline">Review inventory</span>

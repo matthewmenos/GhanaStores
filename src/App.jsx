@@ -1,18 +1,19 @@
 /**
  * DiDwa web shell.
  *
- * Route map (hash router):
- *   #/                       public marketing welcome page - the web index
- *   #/login                  seller authentication (register / login modes)
- *   #/dashboard              PWA home -> analytics
- *   #/pos | payouts | inventory | orders        PWA pages
- *   #/dashboard/themes...    theme market / customizer / demo viewer
+ * Route map (History API router):
+ *   /                         public marketing welcome page
+ *   /login                    seller authentication (register / login modes)
+ *   /dashboard                PWA home -> analytics
+ *   /pos | /payouts | /inventory | /orders  PWA pages
+ *   /dashboard/themes...      theme market / customizer / demo viewer
  *
  * Unauthenticated visitors always land on AuthScreen for any PWA route;
  * the web index stays open so merchants can discover the product first -
  * the PWA itself starts from the login page.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { navigate, usePathname } from './router.js';
 import { api, getToken, clearSession, getCachedStore } from './api.js';
 import TrialBanner from './components/TrialBanner.jsx';
 import DashboardLayout from './layouts/DashboardLayout.jsx';
@@ -32,17 +33,6 @@ import DomainManager from './pages/DomainManager.jsx';
 import LiveStorefront from './pages/LiveStorefront.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 
-const LOGIN_HASH = '#/login';
-
-function useHashRoute() {
-  const [hash, setHash] = useState(window.location.hash || '#/');
-  useEffect(() => {
-    const onChange = () => setHash(window.location.hash || '#/');
-    window.addEventListener('hashchange', onChange);
-    return () => window.removeEventListener('hashchange', onChange);
-  }, []);
-  return hash;
-}
 
 export default function App() {
   const [authed, setAuthed] = useState(Boolean(getToken()));
@@ -50,12 +40,13 @@ export default function App() {
   const [billing, setBilling] = useState(null);
   /* Preselected tab when the welcome page opens the auth screen. */
   const [authMode, setAuthMode] = useState('register');
-  const route = useHashRoute();
+  const route = usePathname();
   const host = window.location.hostname.toLowerCase();
   const platform = String(import.meta.env.VITE_PLATFORM_DOMAIN || '').replace(/^https?:\/\//, '').split('/')[0];
-  const isTenantHost = Boolean(
-    platform && host !== platform && host !== `www.${platform}`
-      && !host.endsWith('.vercel.app') && !host.includes('localhost'),
+  const platformHost = platform.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase();
+  const isPlatformHost = !platformHost || host === platformHost || host === `www.${platformHost}` || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.vercel.app');
+  const isTenantHost = !isPlatformHost && Boolean(
+    platformHost && (host.endsWith(`.${platformHost}`) || host.includes('.')),
   );
 
   /* Refresh trial status whenever the dashboard mounts or route changes. */
@@ -76,42 +67,42 @@ export default function App() {
 
   /* Signed-in sellers never sit on the auth screen. */
   useEffect(() => {
-    if (authed && route === LOGIN_HASH) window.location.hash = '#/dashboard';
+    if (authed && route === '/login') navigate('/dashboard');
   }, [authed, route]);
 
   /* Welcome-page CTAs open the auth screen with the right tab preselected. */
   const openAuth = (mode = 'register') => {
     setAuthMode(mode);
-    window.location.hash = LOGIN_HASH;
+    navigate('/login');
   };
 
   /* Post-auth landing: always inside the PWA, never back on marketing. */
   function handleAuthed(nextStore) {
     setStore(nextStore);
     setAuthed(true);
-    if (!window.location.hash.startsWith('#/dashboard')) {
-      window.location.hash = '#/dashboard';
+    if (route !== '/dashboard') {
+      navigate('/dashboard');
     }
   }
 
   const page = useMemo(() => {
     // Live demo viewer with a dynamic :templateId segment.
-    if (route.startsWith('#/dashboard/themes/demo/')) {
-      const templateId = decodeURIComponent(route.slice('#/dashboard/themes/demo/'.length));
+    if (route.startsWith('/dashboard/themes/demo/')) {
+      const templateId = decodeURIComponent(route.slice('/dashboard/themes/demo/'.length));
       return templateId ? <ThemeDemoViewer templateId={templateId} /> : <SellerThemeMarketplace />;
     }
     switch (route) {
-      case '#/admin': return <AdminDashboard />;
-      case '#/dashboard': return <SellerAnalytics />;
-      case LOGIN_HASH: return null; // redirected by the effect above
-      case '#/pos': return <SellerPOS />;
-      case '#/payouts': return <SellerPayouts />;
-      case '#/inventory': return <SellerInventory />;
-      case '#/orders': return <SellerOrders />;
-      case '#/themes': return <SellerThemeSelector />;
-      case '#/dashboard/themes': return <SellerThemeMarketplace />;
-      case '#/dashboard/themes/customizer': return <ThemeCustomizer chromeless />;
-      case '#/domains': return <DomainManager subdomain={store?.subdomain_slug} storeId={store?.id} />;
+      case '/admin': return <AdminDashboard />;
+      case '/dashboard': return <SellerAnalytics />;
+      case '/login': return null; // redirected by the effect above
+      case '/pos': return <SellerPOS />;
+      case '/payouts': return <SellerPayouts />;
+      case '/inventory': return <SellerInventory />;
+      case '/orders': return <SellerOrders />;
+      case '/themes': return <SellerThemeSelector />;
+      case '/dashboard/themes': return <SellerThemeMarketplace />;
+      case '/dashboard/themes/customizer': return <ThemeCustomizer chromeless />;
+      case '/domains': return <DomainManager subdomain={store?.subdomain_slug} storeId={store?.id} />;
       default: return <SellerAnalytics />;
     }
   }, [route]);
@@ -119,22 +110,22 @@ export default function App() {
   /* Public web pages - open to everyone, no dashboard chrome. The index
      (#/) plus About / Contact / Terms / Privacy stay reachable whether or
      not a seller is signed in. */
+  /* Tenant storefront hosts are public and never require seller auth. */
+  if (isTenantHost) return <LiveStorefront />;
+
   const welcomeProps = {
     authed,
     onStart: openAuth,
-    onDashboard: () => { window.location.hash = '#/dashboard'; },
+    onDashboard: () => { navigate('/dashboard'); },
   };
   switch (route) {
-    case '#/': return <WelcomePage {...welcomeProps} />;
-    case '#/about': return <AboutPage authed={authed} />;
-    case '#/contact': return <ContactPage authed={authed} />;
-    case '#/terms': return <TermsPage authed={authed} />;
-    case '#/privacy': return <PrivacyPage authed={authed} />;
+    case '/': return <WelcomePage {...welcomeProps} />;
+    case '/about': return <AboutPage authed={authed} />;
+    case '/contact': return <ContactPage authed={authed} />;
+    case '/terms': return <TermsPage authed={authed} />;
+    case '/privacy': return <PrivacyPage authed={authed} />;
     default: break;
   }
-
-  /* Tenant storefront hosts are public and never require seller auth. */
-  if (isTenantHost) return <LiveStorefront />;
 
   /* PWA starts from the login page for unauthenticated visitors. */
   if (!authed) {

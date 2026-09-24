@@ -7,6 +7,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
+import { navigate } from '../router.js';
 import { IconCheck, IconAlert } from '../components/icons.jsx';
 import { templateToCustomizerTokens } from '../theme/config.js';
 import {
@@ -216,7 +217,7 @@ export default function SellerThemeMarketplace() {
   }
 
   function openDemo(theme) {
-    window.location.hash = `#/dashboard/themes/demo/${encodeURIComponent(theme.id)}`;
+    navigate(`/dashboard/themes/demo/${encodeURIComponent(theme.id)}`);
   }
 
   /* Open the customizer PRE-SEEDED with the given (active) theme's config
@@ -225,7 +226,7 @@ export default function SellerThemeMarketplace() {
     window.dispatchEvent(
       new CustomEvent('gs:open-customizer', { detail: templateToCustomizerTokens(theme) }),
     );
-    window.location.hash = '#/dashboard/themes/customizer';
+    navigate('/dashboard/themes/customizer');
   }
 
   const activeTheme = themes.find((t) => t.id === activeId);
@@ -251,7 +252,7 @@ export default function SellerThemeMarketplace() {
           </div>
           <button
             type="button"
-            onClick={() => (activeTheme ? openCustomizer(activeTheme) : (window.location.hash = '#/dashboard/themes/customizer'))}
+            onClick={() => (activeTheme ? openCustomizer(activeTheme) : (navigate('/dashboard/themes/customizer')))}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-bold text-charcoal shadow-lg transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <Palette size={13} /> Open Customizer

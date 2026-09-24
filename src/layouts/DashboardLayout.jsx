@@ -29,23 +29,24 @@ import {
 } from 'lucide-react';
 import { api } from '../api.js';
 import { storefrontUrl } from '../config.js';
+import { navigate, usePathname } from '../router.js';
 import {
   DEFAULT_CUSTOM_THEME_CONFIG, normalizeCustomThemeConfig, seedConfigFromTheme,
 } from '../theme/config.js';
 
 /* -------------------------- Sidebar nav config -------------------------- */
 const DASHBOARD_NAV = [
-  { hash: '#/dashboard',       label: 'Analytics',     icon: IconDashboard },
-  { hash: '#/pos',             label: 'POS Terminal',  icon: IconCart },
-  { hash: '#/payouts',         label: 'Payouts',       icon: IconWallet },
-  { hash: '#/inventory',       label: 'Inventory',     icon: IconBox },
-  { hash: '#/orders',          label: 'Orders',        icon: IconReceipt },
-  { hash: '#/dashboard/themes',label: 'Theme Market',  icon: Palette },
-  { hash: '#/domains',         label: 'Domains',       icon: Globe },
+  { path: '/dashboard',       label: 'Analytics',     icon: IconDashboard },
+  { path: '/pos',             label: 'POS Terminal',  icon: IconCart },
+  { path: '/payouts',         label: 'Payouts',       icon: IconWallet },
+  { path: '/inventory',       label: 'Inventory',     icon: IconBox },
+  { path: '/orders',          label: 'Orders',        icon: IconReceipt },
+  { path: '/dashboard/themes',label: 'Theme Market',  icon: Palette },
+  { path: '/domains',         label: 'Domains',       icon: Globe },
 ];
 
 /** Route that flips the shell into sidebar-replacing customizer mode. */
-const CUSTOMIZER_ROUTE = '#/dashboard/themes/customizer';
+const CUSTOMIZER_ROUTE = '/dashboard/themes/customizer';
 
 /**
  * Shared off-canvas drawer shell: overlay sheet below 768px, static
@@ -201,9 +202,9 @@ function MainSidebar({ open, store, onNavClose, route, onNavigate, isActive }) {
       {/* Theme marketplace trigger (prominent) */}
       <button
         type="button"
-        onClick={() => onNavigate('#/dashboard/themes')}
+        onClick={() => onNavigate('/dashboard/themes')}
         className={`flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-left text-sm font-semibold transition ${
-          isActive('#/dashboard/themes')
+          isActive('/dashboard/themes')
             ? 'bg-blue-600 text-white'
             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
         }`}
@@ -214,13 +215,13 @@ function MainSidebar({ open, store, onNavClose, route, onNavigate, isActive }) {
 
       {/* Primary nav */}
       <nav className="mt-1 space-y-1" aria-label="Main navigation">
-        {DASHBOARD_NAV.map(({ hash, label, icon: Icon }) => (
+        {DASHBOARD_NAV.map(({ path, label, icon: Icon }) => (
           <button
-            key={hash}
+            key={path}
             type="button"
-            onClick={() => onNavigate(hash)}
+            onClick={() => onNavigate(path)}
             className={`flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-              isActive(hash)
+              isActive(path)
                 ? 'bg-blue-600 text-white'
                 : 'text-slate-300 hover:bg-slate-800 hover:text-white'
             }`}
@@ -583,12 +584,12 @@ function CustomizerSidebar({
 
 export default function DashboardLayout({ children }) {
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(
-    window.location.hash === CUSTOMIZER_ROUTE,
+    window.location.pathname === CUSTOMIZER_ROUTE,
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   /* WordPress-style collapse of the customizer control rail (lg+ only). */
   const [panelCollapsed, setPanelCollapsed] = useState(false);
-  const [route, setRoute] = useState(window.location.hash || '#/');
+  const route = usePathname();
   const [store, setStore] = useState(null);
 
   const [customTheme, setCustomTheme] = useState(() => {
@@ -602,20 +603,16 @@ export default function DashboardLayout({ children }) {
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
 
-  /* '#/dashboard' matches exactly only - theme sub-routes belong to
+  /* '/dashboard' matches exactly only - theme sub-routes belong to
      Theme Market, not Analytics. */
-  const isActive = (hash) =>
-    route === hash ||
-    (hash !== '#/' && hash !== '#/dashboard' && route.startsWith(`${hash}/`));
+  const isActive = (path) =>
+    route === path ||
+    (path !== '/' && path !== '/dashboard' && route.startsWith(`${path}/`));
 
   useEffect(() => {
-    const onChange = () => {
-      const hash = window.location.hash || '#/';
-      setRoute(hash);
-      setIsCustomizerOpen(hash === CUSTOMIZER_ROUTE);
-    };
-    window.addEventListener('hashchange', onChange);
-    return () => window.removeEventListener('hashchange', onChange);
+    const onChange = () => setIsCustomizerOpen(window.location.pathname === CUSTOMIZER_ROUTE);
+    window.addEventListener('popstate', onChange);
+    return () => window.removeEventListener('popstate', onChange);
   }, []);
 
   useEffect(() => {
@@ -686,22 +683,17 @@ export default function DashboardLayout({ children }) {
     return () => window.removeEventListener('gs:customizer-collapse', onToggle);
   }, []);
 
-  const onNavigate = (hash) => {
-    /* The router in App.jsx derives the rendered page from
-       window.location.hash via `hashchange` - so navigation REQUIRES a real
-       hash write; updating local state alone would only move the active-link
-       highlight while the page stays frozen. */
-    if (window.location.hash !== hash) window.location.hash = hash;
-    setRoute(hash);
-    setIsCustomizerOpen(hash === CUSTOMIZER_ROUTE);
-    setDrawerOpen(false); // navigating from the mobile drawer dismisses it
+  const onNavigate = (path) => {
+    navigate(path);
+    setIsCustomizerOpen(path === CUSTOMIZER_ROUTE);
+    setDrawerOpen(false);
   };
 
   const onBack = () => {
     // Same primitive as sidebar links: leaves customizer mode (the target
     // hash is not CUSTOMIZER_ROUTE), closes the drawer and restores the
     // dark primary nav sidebar.
-    onNavigate('#/dashboard/themes');
+    onNavigate('/dashboard/themes');
   };
 
   /* Advanced > Reset: restore every token to schema defaults. */

@@ -1,7 +1,7 @@
 /**
  * WelcomePage - public marketing index for DiDwa.
  * Tells visitors what the platform does and funnels them into the seller
- * PWA (register / login). Rendered at bare index hash (#/) with NO
+ * PWA (register / login). Rendered at the site root with NO
  * dashboard chrome, open to everyone.
  *
  * Props:
@@ -80,8 +80,8 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
               <button key={id} type="button" onClick={() => goTo(id)} className="transition hover:text-charcoal">{label}</button>
             ))}
             <span className="h-4 w-px bg-slate-200" aria-hidden="true" />
-            <a href="#/about" className="transition hover:text-charcoal">About Us</a>
-            <a href="#/contact" className="transition hover:text-charcoal">Contact Us</a>
+            <a href="/about" className="transition hover:text-charcoal">About Us</a>
+            <a href="/contact" className="transition hover:text-charcoal">Contact Us</a>
           </nav>
           <div className="flex items-center gap-2">
             {/* Hamburger - mobile site menu */}
@@ -298,19 +298,19 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
             {[['features', 'Features'], ['how', 'How it works'], ['stats', 'Why us']].map(([id, label]) => (
               <button key={id} type="button" onClick={() => goTo(id)} className="block transition hover:text-charcoal">{label}</button>
             ))}
-            <a href="#/login" className="block transition hover:text-charcoal">Seller login</a>
+            <a href="/login" className="block transition hover:text-charcoal">Seller login</a>
           </nav>
 
           <nav className="space-y-1.5 text-xs font-semibold text-slate-500" aria-label="Company links">
             <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-charcoal">Company</p>
-            <a href="#/about" className="block transition hover:text-charcoal">About Us</a>
-            <a href="#/contact" className="block transition hover:text-charcoal">Contact Us</a>
+            <a href="/about" className="block transition hover:text-charcoal">About Us</a>
+            <a href="/contact" className="block transition hover:text-charcoal">Contact Us</a>
           </nav>
 
           <nav className="space-y-1.5 text-xs font-semibold text-slate-500" aria-label="Legal links">
             <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-charcoal">Legal</p>
-            <a href="#/terms" className="block transition hover:text-charcoal">Terms of Service</a>
-            <a href="#/privacy" className="block transition hover:text-charcoal">Privacy Policy</a>
+            <a href="/terms" className="block transition hover:text-charcoal">Terms of Service</a>
+            <a href="/privacy" className="block transition hover:text-charcoal">Privacy Policy</a>
           </nav>
         </div>
         <p className="mx-auto mt-8 max-w-6xl border-t border-slate-900/5 px-4 pt-6 text-[11px] font-medium text-slate-400 sm:px-6">
@@ -368,10 +368,10 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
             ))}
 
             <p className="px-2 pb-1 pt-5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Company</p>
-            <a href="#/about" onClick={() => setMenuOpen(false)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-mist hover:text-charcoal">
+            <a href="/about" onClick={() => setMenuOpen(false)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-mist hover:text-charcoal">
               About Us <ChevronRight size={15} className="text-slate-300" aria-hidden="true" />
             </a>
-            <a href="#/contact" onClick={() => setMenuOpen(false)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-mist hover:text-charcoal">
+            <a href="/contact" onClick={() => setMenuOpen(false)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-mist hover:text-charcoal">
               Contact Us <ChevronRight size={15} className="text-slate-300" aria-hidden="true" />
             </a>
           </nav>

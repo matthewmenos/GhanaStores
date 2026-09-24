@@ -26,8 +26,8 @@
     }
   ],
   "shortcuts": [
-    { "name": "POS Terminal", "url": "/#/pos" },
-    { "name": "Instant Payouts", "url": "/#/payouts" },
-    { "name": "Inventory", "url": "/#/inventory" }
+    { "name": "POS Terminal", "url": "/pos" },
+    { "name": "Instant Payouts", "url": "/payouts" },
+    { "name": "Inventory", "url": "/inventory" }
   ]
 }

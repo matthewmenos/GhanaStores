@@ -1,10 +1,11 @@
 /**
  * ThemeDemoViewer - full-screen interactive live demo sandbox.
- * Route: #/dashboard/themes/demo/:templateId
+ * Route: /dashboard/themes/demo/:templateId
  * STRICT RULE: pure SVG / Lucide icons only, ZERO emojis.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ghs } from '../api.js';
+import { navigate } from '../router.js';
 import {
   IconStore, IconCheck, IconAlert, IconSpinner, IconWhatsApp,
   IconTruck, IconShield, IconWallet,
@@ -406,7 +407,7 @@ export default function ThemeDemoViewer({ templateId }) {
   function openCustomizer() {
     const theme = data?.theme;
     if (!theme) {
-      window.location.hash = '#/dashboard/themes/customizer';
+      navigate('/dashboard/themes/customizer');
       return;
     }
     window.dispatchEvent(
@@ -414,7 +415,7 @@ export default function ThemeDemoViewer({ templateId }) {
         detail: templateToCustomizerTokens({ name: theme.name, config: theme.config }),
       }),
     );
-    window.location.hash = '#/dashboard/themes/customizer';
+    navigate('/dashboard/themes/customizer');
   }
 
   const vp = VIEWPORTS.find((v) => v.key === viewport) || VIEWPORTS[0];
@@ -429,7 +430,7 @@ export default function ThemeDemoViewer({ templateId }) {
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
               type="button"
-              onClick={() => { window.location.hash = '#/dashboard/themes'; }}
+              onClick={() => { navigate('/dashboard/themes'); }}
               className="flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               aria-label="Back to theme marketplace"
             >

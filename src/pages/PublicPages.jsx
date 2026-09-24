@@ -4,7 +4,7 @@
  *
  * All four share PublicShell (compact nav + footer) so branding stays
  * consistent with the marketing index. Routes are wired in App.jsx:
- *   #/about · #/contact · #/terms · #/privacy
+ *   /about · /contact · /terms · /privacy
  *
  * STRICT RULE: pure SVG / Lucide React icons ONLY - ZERO emojis.
  */
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { LogoLockup } from '../components/icons.jsx';
 import { PLATFORM_DOMAIN } from '../config.js';
+import { navigate } from '../router.js';
 
 const UPDATED = 'August 2026';
 const CONTACT_EMAIL = `hello@${PLATFORM_DOMAIN}`;
@@ -27,14 +28,14 @@ function Shell({ authed, children }) {
     <div className="flex min-h-screen flex-col bg-white text-charcoal">
       <header className="sticky top-0 z-40 border-b border-slate-900/5 bg-white/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
-          <button type="button" onClick={() => { window.location.hash = '#/'; }} aria-label="Back to home">
+          <button type="button" onClick={() => { navigate('/'); }} aria-label="Back to home">
             <LogoLockup />
           </button>
           <div className="flex items-center gap-2">
             {authed ? (
               <button
                 type="button"
-                onClick={() => { window.location.hash = '#/dashboard'; }}
+                onClick={() => { navigate('/dashboard'); }}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
               >
                 Open dashboard <ArrowRight size={15} aria-hidden="true" />
@@ -43,14 +44,14 @@ function Shell({ authed, children }) {
               <>
                 <button
                   type="button"
-                  onClick={() => { window.location.hash = '#/login'; }}
+                  onClick={() => { navigate('/login'); }}
                   className="hidden rounded-xl px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:block"
                 >
                   Sign in
                 </button>
                 <button
                   type="button"
-                  onClick={() => { window.location.hash = '#/login'; }}
+                  onClick={() => { navigate('/login'); }}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
                 >
                   Start free <ArrowRight size={15} aria-hidden="true" />
@@ -67,11 +68,11 @@ function Shell({ authed, children }) {
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 text-xs font-semibold text-slate-400 sm:flex-row sm:px-6">
           <LogoLockup />
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2" aria-label="Site links">
-            {[['#/', 'Home'], ['#/about', 'About Us'], ['#/contact', 'Contact']].map(([hash, label]) => (
+            {[['/', 'Home'], ['/about', 'About Us'], ['/contact', 'Contact']].map(([hash, label]) => (
               <a key={label} href={hash} className="transition hover:text-charcoal">{label}</a>
             ))}
-            <a href="#/terms" className="transition hover:text-charcoal">Terms</a>
-            <a href="#/privacy" className="transition hover:text-charcoal">Privacy</a>
+            <a href="/terms" className="transition hover:text-charcoal">Terms</a>
+            <a href="/privacy" className="transition hover:text-charcoal">Privacy</a>
           </nav>
           <p>© {new Date().getFullYear()} DiDwa</p>
         </div>
@@ -132,7 +133,7 @@ export function AboutPage({ authed = false }) {
           </div>
           <button
             type="button"
-            onClick={() => { window.location.hash = authed ? '#/dashboard' : '#/login'; }}
+            onClick={() => { navigate(authed ? '/dashboard' : '/login'); }}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-brand px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
             {authed ? 'Open dashboard' : 'Start free trial'} <ArrowRight size={15} aria-hidden="true" />
@@ -226,7 +227,7 @@ function LegalDoc({ authed, title, intro, sections }) {
   return (
     <Shell authed={authed}>
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-        <a href="#/" className="text-xs font-bold text-blue-600 hover:underline">Back to home</a>
+        <a href="/" className="text-xs font-bold text-blue-600 hover:underline">Back to home</a>
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h1>
         <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400">Last updated: {UPDATED}</p>
 
@@ -260,7 +261,7 @@ function LegalDoc({ authed, title, intro, sections }) {
           <h2 className="text-sm font-extrabold">Questions about this document?</h2>
           <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
             <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-1.5 font-semibold text-blue-600 hover:text-blue-700"><Mail size={13} aria-hidden="true" />{CONTACT_EMAIL}</a>
-            <a href="#/contact" className="inline-flex items-center gap-1.5 font-semibold text-blue-600 hover:text-blue-700"><Send size={13} aria-hidden="true" />Contact page</a>
+            <a href="/contact" className="inline-flex items-center gap-1.5 font-semibold text-blue-600 hover:text-blue-700"><Send size={13} aria-hidden="true" />Contact page</a>
           </p>
         </div>
       </div>

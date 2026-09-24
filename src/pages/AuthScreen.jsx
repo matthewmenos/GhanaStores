@@ -300,9 +300,9 @@ export default function AuthScreen({ onAuthed, initialMode = 'register' }) {
                   />
                   <span className="text-slate-500">
                     I have read and accept the{' '}
-                    <a href="#/terms" target="_blank" rel="noreferrer" className="font-bold text-blue-600 underline decoration-blue-200 hover:text-blue-700">Terms of Service</a>
+                    <a href="/terms" target="_blank" rel="noreferrer" className="font-bold text-blue-600 underline decoration-blue-200 hover:text-blue-700">Terms of Service</a>
                     {' '}and{' '}
-                    <a href="#/privacy" target="_blank" rel="noreferrer" className="font-bold text-blue-600 underline decoration-blue-200 hover:text-blue-700">Privacy Policy</a>, including how my business data is processed.
+                    <a href="/privacy" target="_blank" rel="noreferrer" className="font-bold text-blue-600 underline decoration-blue-200 hover:text-blue-700">Privacy Policy</a>, including how my business data is processed.
                   </span>
                 </label>
               )}
