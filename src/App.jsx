@@ -30,6 +30,7 @@ import ThemeDemoViewer from './pages/ThemeDemoViewer.jsx';
 import ThemeCustomizer from './pages/ThemeCustomizer.jsx';
 import DomainManager from './pages/DomainManager.jsx';
 import LiveStorefront from './pages/LiveStorefront.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 
 const LOGIN_HASH = '#/login';
 
@@ -100,6 +101,7 @@ export default function App() {
       return templateId ? <ThemeDemoViewer templateId={templateId} /> : <SellerThemeMarketplace />;
     }
     switch (route) {
+      case '#/admin': return <AdminDashboard />;
       case '#/dashboard': return <SellerAnalytics />;
       case LOGIN_HASH: return null; // redirected by the effect above
       case '#/pos': return <SellerPOS />;

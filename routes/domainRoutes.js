@@ -29,7 +29,21 @@ const CNAME_TARGET = process.env.CNAME_TARGET || `cname.${PLATFORM_DOMAIN}`;
 const VERCEL_CNAME = 'cname.vercel-dns.com';
 const VERCEL_APEX_IPS = new Set(['76.76.21.21', '76.76.21.22', '76.76.21.61', '76.76.21.98', '76.76.21.241', '76.76.21.242']);
 
-const DOMAIN_RE = /^(\*\.)?([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
+const DOMAIN_RE = /^(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,63}$/i;
+
+function normalizeDomain(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .split(':')[0]
+    .replace(/\.$/, '');
+}
+
+function domainUrl(domain) {
+  return domain ? `https://${domain}` : null;
+}
 
 /* ------------------------------ Public resolution ---------------------------- */
 // Lets the SPA ask "who owns the domain I am browsing?" (storefront header).
@@ -138,7 +152,7 @@ router.get('/my', requireSeller, async (req, res, next) => {
 /* ---------------------- Seller: attach a custom domain ----------------------- */
 router.put('/my', requireSeller, async (req, res, next) => {
   try {
-    const domain = String(req.body?.customDomain || '').toLowerCase().trim().replace(/^https?:\/\//, '').split('/')[0];
+    const domain = normalizeDomain(req.body?.customDomain);
     if (!domain) {
       // Clearing the domain.
       await query('UPDATE stores SET custom_domain = NULL WHERE id = $1', [req.auth.sub]);
@@ -147,22 +161,7 @@ router.put('/my', requireSeller, async (req, res, next) => {
     if (!DOMAIN_RE.test(domain)) {
       return res.status(400).json({ error: 'Enter a valid domain, e.g. shop.mybrand.com' });
     }
-    if (domain.endsWith(`.${PLATFORM_DOMAIN}`)) {
-      return res.status(400).json({ error: 'Use the subdomain field for platform domains.' });
-    }
-    const taken = await query(
-      'SELECT 1 FROM stores WHERE custom_domain = $1 AND id <> $2',
-      [domain, req.auth.sub],
-    );
-    if (taken.rows.length > 0) {
-      return res.status(409).json({ error: 'This domain is already connected to another store.' });
-    }
-    await query('UPDATE stores SET custom_domain = $2 WHERE id = $1', [req.auth.sub, domain]);
-    res.json({
-      message: 'Domain saved. Create the DNS record below; SSL provisions automatically.',
-      customDomain: domain,
-      dns: { recordType: 'CNAME', name: domain.split('.')[0] === 'www' ? 'www' : '@', target: CNAME_TARGET },
-    });
+    return res.status(400).json({ error: 'Configure and verify the domain through /api/domains/connect-existing and /api/domains/verify-status before attaching it.' });
   } catch (err) {
     next(err);
   }
@@ -175,8 +174,7 @@ router.put('/my', requireSeller, async (req, res, next) => {
 // unattached domain.
 router.post('/verify', requireSeller, async (req, res, next) => {
   try {
-    const domain = String(req.body?.customDomain || '')
-      .toLowerCase().trim().replace(/^https?:\/\//, '').split('/')[0];
+    const domain = normalizeDomain(req.body?.customDomain);
     if (!domain) return res.status(400).json({ error: 'customDomain is required.' });
     if (!DOMAIN_RE.test(domain)) {
       return res.status(400).json({ error: 'Enter a valid domain, e.g. shop.mybrand.com' });
@@ -236,7 +234,7 @@ router.post('/verify', requireSeller, async (req, res, next) => {
 // Caddy calls this before issuing a certificate for an unknown domain.
 router.get('/caddy-ask', async (req, res) => {
   try {
-    const domain = String(req.query.domain || '').toLowerCase().trim();
+    const domain = normalizeDomain(req.query.domain);
     if (!DOMAIN_RE.test(domain)) return res.sendStatus(403);
     const { rows } = await query(
       'SELECT 1 FROM stores WHERE LOWER(custom_domain) = $1 LIMIT 1',
@@ -259,7 +257,7 @@ import * as domainService from '../services/domainService.js';
 
 router.post('/connect-existing', requireSeller, async (req, res, next) => {
   try {
-    const domainName = String(req.body?.domainName || '').trim();
+    const domainName = normalizeDomain(req.body?.domainName);
     if (!domainName) {
       return res.status(400).json({ error: 'domainName is required.' });
     }
@@ -309,7 +307,7 @@ router.post('/connect-existing', requireSeller, async (req, res, next) => {
 
 router.get('/verify-status', requireSeller, async (req, res, next) => {
   try {
-    const domainName = String(req.query.domain || '').trim();
+    const domainName = normalizeDomain(req.query.domain);
     if (!domainName) {
       return res.status(400).json({ error: 'domain query parameter is required.' });
     }
@@ -328,6 +326,9 @@ router.get('/verify-status', requireSeller, async (req, res, next) => {
           result.domainName,
         ],
       );
+      if (result.status === 'ACTIVE') {
+        await query('UPDATE stores SET custom_domain =  WHERE id = ', [req.auth.sub, result.domainName]);
+      }
     }
 
     return res.json({

@@ -4,6 +4,7 @@
  */
 const TOKEN_KEY = 'gs_token';
 const STORE_KEY = 'gs_store';
+const ADMIN_TOKEN_KEY = 'gs_admin_token';
 export const OFFLINE_POS_KEY = 'didwa_pos_pending';
 
 export function getToken() {
@@ -26,6 +27,21 @@ export function getCachedStore() {
   } catch {
     return null;
   }
+}
+
+export function getAdminToken() {
+  return localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+}
+export function setAdminSession(token, admin) {
+  localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  if (admin) localStorage.setItem('gs_admin_profile', JSON.stringify(admin));
+}
+export function getAdminProfile() {
+  try { return JSON.parse(localStorage.getItem('gs_admin_profile') || 'null'); } catch { return null; }
+}
+export function clearAdminSession() {
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  localStorage.removeItem('gs_admin_profile');
 }
 
 function readPendingSales() {
@@ -53,9 +69,9 @@ export async function flushOfflineSales() {
   return pending.length - remaining.length;
 }
 
-async function request(path, { method = 'GET', body, isForm } = {}) {
+async function request(path, { method = 'GET', body, isForm, token: explicitToken } = {}) {
   const headers = {};
-  const token = getToken();
+  const token = explicitToken !== undefined ? explicitToken : getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   if (!isForm && body !== undefined) headers['Content-Type'] = 'application/json';
 
@@ -71,7 +87,7 @@ async function request(path, { method = 'GET', body, isForm } = {}) {
   if (!res.ok) {
     const err = new Error(data?.error || `Request failed (${res.status})`);
     err.status = res.status;
-    if (res.status === 401 && !path.startsWith('/api/billing/login')) {
+    if (res.status === 401 && !explicitToken && !path.startsWith('/api/billing/login')) {
       // Session expired - hard reset so the login screen appears.
       clearSession();
       window.dispatchEvent(new Event('gs:logout'));
@@ -80,6 +96,12 @@ async function request(path, { method = 'GET', body, isForm } = {}) {
   }
   return data;
 }
+
+export const adminApi = {
+  get: (p) => request(p, { token: getAdminToken() }),
+  post: (p, body) => request(p, { method: 'POST', body, token: getAdminToken() }),
+  patch: (p, body) => request(p, { method: 'PATCH', body, token: getAdminToken() }),
+};
 
 export const api = {
   get: (p) => request(p),

@@ -13,6 +13,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../config/database.js';
 import { issueAdminToken, requireAdmin } from '../middleware/authMiddleware.js';
+import { verifyDomainStatus } from '../services/domainService.js';
 
 const router = Router();
 
@@ -91,5 +92,63 @@ router.post('/admins', requireAdmin, async (req, res, next) => {
     next(err);
   }
 });
+/* ------------------------------ Admin overview ----------------------------- */
+router.get('/overview', requireAdmin, async (_req, res, next) => {
+  try {
+    const [metrics, tenants, domains, transactions, gateways] = await Promise.all([
+      query(`SELECT
+          COALESCE((SELECT SUM(total) FROM orders WHERE status IN ('PAID','FULFILLED','DELIVERED')), 0) AS total_revenue,
+          (SELECT COUNT(*) FROM stores WHERE status <> 'SUSPENDED') AS active_merchants,
+          (SELECT COUNT(*) FROM store_domains WHERE status = 'ACTIVE') AS active_domains,
+          (SELECT COUNT(*) FROM store_domains WHERE status IN ('FAILED','CANCELLED')) AS action_required`),
+      query(`SELECT id, name, email, subdomain_slug, custom_domain, status, plan, created_at
+               FROM stores ORDER BY created_at DESC`),
+      query(`SELECT d.id, d.domain_name, d.provider, d.status, d.ssl_status,
+                    d.purchase_reference, d.verification_errors, d.created_at,
+                    s.name AS store_name, s.subdomain_slug
+               FROM store_domains d JOIN stores s ON s.id = d.store_id
+              ORDER BY d.created_at DESC`),
+      query(`SELECT sp.id, sp.store_id, sp.amount, sp.momo_number, sp.network,
+                    sp.provider, sp.reference, sp.gateway_reference, sp.status,
+                    sp.failure_reason, sp.initiated_at, s.name AS store_name
+               FROM subscription_payments sp JOIN stores s ON s.id = sp.store_id
+              ORDER BY sp.initiated_at DESC LIMIT 250`),
+      query(`SELECT provider, status, COUNT(*)::int AS count
+               FROM subscription_payments GROUP BY provider, status`),
+    ]);
+    res.json({ metrics: metrics.rows[0], tenants: tenants.rows, domains: domains.rows, transactions: transactions.rows, gateways: gateways.rows });
+  } catch (err) { next(err); }
+});
+
+router.patch('/tenants/:id/status', requireAdmin, async (req, res, next) => {
+  try {
+    const status = String(req.body?.status || '').toUpperCase();
+    if (!['TRIAL', 'ACTIVE', 'SUSPENDED'].includes(status)) return res.status(400).json({ error: 'Invalid tenant status.' });
+    const { rows } = await query('UPDATE stores SET status = $2 WHERE id = $1 RETURNING id, name, status', [req.params.id, status]);
+    if (!rows[0]) return res.status(404).json({ error: 'Tenant not found.' });
+    res.json({ tenant: rows[0] });
+  } catch (err) { next(err); }
+});
+
+router.post('/domains/:id/retry', requireAdmin, async (req, res, next) => {
+  try {
+    const { rows } = await query('SELECT id, domain_name FROM store_domains WHERE id = $1 AND status IN (\'FAILED\',\'CANCELLED\') LIMIT 1', [req.params.id]);
+    const domain = rows[0];
+    if (!domain) return res.status(409).json({ error: 'Domain is not eligible for retry.' });
+    const result = await verifyDomainStatus(domain.domain_name);
+    const status = ['ACTIVE', 'PENDING_DNS', 'FAILED'].includes(result.status) ? result.status : 'FAILED';
+    const { rows: updated } = await query(
+      `UPDATE store_domains
+          SET status = $2, ssl_status = COALESCE($3, ssl_status),
+              custom_hostname_id = COALESCE($4, custom_hostname_id),
+              verification_errors = COALESCE($5, verification_errors), updated_at = NOW()
+        WHERE id = $1 RETURNING id, domain_name, status, ssl_status, custom_hostname_id`,
+      [domain.id, status, result.ssl?.status || null, result.customHostnameId || null, JSON.stringify(result.verificationErrors || [])],
+    );
+    res.json({ domain: updated[0], message: status === 'ACTIVE' ? 'Domain verified and activated.' : 'Domain verification refreshed.' });
+  } catch (err) { next(err); }
+});
+
+
 
 export default router;
