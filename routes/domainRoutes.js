@@ -28,6 +28,9 @@ const CNAME_TARGET = process.env.CNAME_TARGET || `cname.${PLATFORM_DOMAIN}`;
 // Vercel's canonical custom-domain DNS targets.
 const VERCEL_CNAME = 'cname.vercel-dns.com';
 const VERCEL_APEX_IPS = new Set(['76.76.21.21', '76.76.21.22', '76.76.21.61', '76.76.21.98', '76.76.21.241', '76.76.21.242']);
+// Cloudflare returns its anycast edge addresses when a record is orange-clouded,
+// so a proxied record cannot be matched to a real target by IP alone.
+const CNAME_PROXY_IP_RANGES = ['104.16.', '104.17.', '104.18.', '104.19.', '104.20.', '104.21.', '104.22.', '104.24.', '172.64.', '173.245.', '103.21.', '103.22.', '103.31.', '141.101.', '190.93.240.'];
 
 const DOMAIN_RE = /^(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,63}$/i;
 
@@ -122,8 +125,14 @@ router.get('/my', requireSeller, async (req, res, next) => {
       [req.auth.sub],
     );
     const store = rows[0];
+    // Never emit a literal "undefined" host: the subdomain is only renderable
+    // when PLATFORM_DOMAIN is actually configured on this instance.
+    const platformHost = PLATFORM_DOMAIN.replace(/:\d+$/, '');
+    const subdomainHost = store.subdomain_slug && platformHost
+      ? `${store.subdomain_slug}.${platformHost}`
+      : null;
     res.json({
-      subdomain: `${store.subdomain_slug}.${PLATFORM_DOMAIN}`,
+      subdomain: subdomainHost,
       subdomainSlug: store.subdomain_slug,
       customDomain: store.custom_domain,
       dns: {
@@ -190,13 +199,25 @@ router.post('/verify', requireSeller, async (req, res, next) => {
     let aRecords = [];
     try { aRecords = await dns.resolve4(domain); } catch { /* none */ }
 
+    // A Vercel target can appear as the canonical CNAME, as a Cloudflare-flattened
+    // CNAME (which resolves straight to Vercel's apex A records), or as an ALIAS.
     const cnameOk = cnameRecords.some((r) =>
       r === VERCEL_CNAME || r === CNAME_TARGET || r.endsWith(`.${VERCEL_CNAME}`));
     const apexOk = aRecords.some((ip) => VERCEL_APEX_IPS.has(ip));
+    // Orange-clouded records resolve to Cloudflare anycast IPs, which hides the
+    // real target, so accept that shape only when the platform target is Vercel.
+    const cloudflareProxied = aRecords.some((ip) =>
+      CNAME_PROXY_IP_RANGES.some((range) => ip.startsWith(range)));
+    const pointsAtPlatform = cnameOk || apexOk
+      || (cloudflareProxied && CNAME_TARGET === VERCEL_CNAME);
 
-    const records = { cname: cnameRecords, a: aRecords, match: cnameOk ? 'cname' : (apexOk ? 'apex' : null) };
+    const records = {
+      cname: cnameRecords,
+      a: aRecords,
+      match: cnameOk ? 'cname' : (apexOk ? 'apex' : (cloudflareProxied ? 'cloudflare_proxied' : null)),
+    };
 
-    if (!cnameOk && !apexOk) {
+    if (!pointsAtPlatform) {
       return res.status(400).json({
         verified: false,
         error: 'DNS record not detected yet. Point your domain at DiDwa, then retry.',
