@@ -29,7 +29,7 @@ function Shell({ authed, children }) {
       <header className="sticky top-0 z-40 border-b border-slate-900/5 bg-white/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
           <button type="button" onClick={() => { navigate('/'); }} aria-label="Back to home">
-            <LogoLockup />
+            <LogoLockup onLight />
           </button>
           <div className="flex items-center gap-2">
             {authed ? (
@@ -66,7 +66,7 @@ function Shell({ authed, children }) {
 
       <footer className="border-t border-slate-900/5 py-8">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 text-xs font-semibold text-slate-400 sm:flex-row sm:px-6">
-          <LogoLockup />
+          <LogoLockup onLight />
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2" aria-label="Site links">
             {[['/', 'Home'], ['/about', 'About Us'], ['/contact', 'Contact']].map(([hash, label]) => (
               <a key={label} href={hash} className="transition hover:text-charcoal">{label}</a>

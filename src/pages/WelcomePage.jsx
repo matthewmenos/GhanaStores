@@ -73,7 +73,7 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
       <header className="sticky top-0 z-40 border-b border-slate-900/5 bg-white/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="DiDwa home">
-            <LogoLockup />
+            <LogoLockup onLight />
           </button>
           <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-500 lg:flex" aria-label="Sections">
             {[['features', 'Features'], ['how', 'How it works'], ['stats', 'Why us']].map(([id, label]) => (
@@ -250,7 +250,7 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
           </dl>
           <p className="mx-auto mt-10 flex max-w-md items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400">
             <ShieldCheck size={14} className="shrink-0 text-emerald-400" aria-hidden="true" />
-            Your data is encrypted and your storefront lives on your own {PLATFORM_DOMAIN} address.
+            Your data is encrypted and your storefront runs on its own secure web address.
           </p>
         </div>
       </section>
@@ -284,13 +284,13 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
       <footer className="border-t border-slate-900/5 py-10">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-[2fr_1fr_1fr_1fr]">
           <div className="space-y-3">
-            <LogoLockup />
+            <LogoLockup onLight />
             <p className="max-w-xs text-xs leading-relaxed text-slate-400">
               The multi-tenant commerce platform and seller PWA built for Ghanaian merchants - POS, payouts, inventory and storefronts in one place.
             </p>
-            <a href={`https://demo.${PLATFORM_DOMAIN}`} target="_blank" rel="noreferrer" className="inline-block text-xs font-bold text-blue-600 transition hover:text-blue-700">
-              demo.{PLATFORM_DOMAIN}
-            </a>
+            <p className="text-xs font-bold text-blue-600">
+              Every store gets its own address automatically
+            </p>
           </div>
 
           <nav className="space-y-1.5 text-xs font-semibold text-slate-500" aria-label="Product links">
@@ -343,7 +343,7 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
           }`}
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <LogoLockup />
+            <LogoLockup onLight />
             <button
               type="button"
               onClick={() => setMenuOpen(false)}

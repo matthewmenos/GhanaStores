@@ -133,15 +133,15 @@ export const IconLogo = ({ size = 28, className = '', alt = 'DiDwa' }) => (
   />
 );
 
-/** Brand mark + wordmark for sidebars and auth screens. */
-export function LogoLockup({ compact = false }) {
+/** Brand mark + wordmark. `onLight` is required on white/light backgrounds. */
+export function LogoLockup({ compact = false, onLight = false }) {
   return (
     <div className="flex items-center gap-2.5">
       <IconLogo size={30} />
       {!compact && (
         <div className="leading-tight">
-          <div className="text-white font-bold text-[15px] tracking-tight">DiDwa</div>
-          <div className="text-slate-400 text-[10px] uppercase tracking-[0.18em]">Seller Platform</div>
+          <div className={`font-bold text-[15px] tracking-tight ${onLight ? 'text-charcoal' : 'text-white'}`}>DiDwa</div>
+          <div className={`text-[10px] uppercase tracking-[0.18em] ${onLight ? 'text-slate-400' : 'text-slate-400'}`}>Seller Platform</div>
         </div>
       )}
     </div>
