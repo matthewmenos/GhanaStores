@@ -1,6 +1,5 @@
 /**
  * DiDwa PWA bootstrap.
- * Hash routing keeps deep links working on static hosts without rewrites.
  */
 import React, { Component } from 'react';
 import { createRoot } from 'react-dom/client';

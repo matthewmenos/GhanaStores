@@ -18,6 +18,7 @@ import {
   Wallet, X, Zap,
 } from 'lucide-react';
 import { LogoLockup } from '../components/icons.jsx';
+import { buildLabel } from '../buildInfo.js';
 
 /** Smooth-scroll to an in-page section id. */
 function goTo(id) {
@@ -314,7 +315,7 @@ export default function WelcomePage({ authed = false, onStart, onDashboard }) {
           </nav>
         </div>
         <p className="mx-auto mt-8 max-w-6xl border-t border-slate-900/5 px-4 pt-6 text-[11px] font-medium text-slate-400 sm:px-6">
-          (c) {new Date().getFullYear()} DiDwa · Built for Ghanaian commerce
+          (c) {new Date().getFullYear()} DiDwa · Built for Ghanaian commerce · {buildLabel}
         </p>
       </footer>
 

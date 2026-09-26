@@ -9,7 +9,7 @@
  *     accepted even when the client loses its connection, so the seller must
  *     reconcile that transaction manually before retrying.
  */
-const CACHE = 'didwa-v3';
+const CACHE = 'didwa-v4';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/didwa-logo.jpg'];
 
 self.addEventListener('install', (event) => {
@@ -33,6 +33,8 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return;
 
   if (event.request.mode === 'navigate') {
+    // Network-first: always try the live HTML so a new deploy is picked up
+    // immediately. The cache is only an offline fallback.
     event.respondWith(
       fetch(event.request)
         .then((res) => {
@@ -45,7 +47,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (['style', 'script', 'image', 'font'].includes(event.request.destination)) {
+  if (['image', 'font'].includes(event.request.destination)) {
+    // Immutable-ish content: cache first is fine and keeps the shell fast.
     event.respondWith(
       caches.match(event.request).then((cached) => {
         const network = fetch(event.request)
@@ -59,6 +62,25 @@ self.addEventListener('fetch', (event) => {
           .catch(() => cached);
         return cached || network;
       }),
+    );
+    return;
+  }
+
+  if (['style', 'script'].includes(event.request.destination)) {
+    // Network-first for code. Serving a cached bundle first pins the browser
+    // to an older deploy until a later reload, which is exactly the "I fixed it
+    // but it still shows the old behaviour" failure mode. The cache remains as
+    // an offline fallback.
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(event.request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(event.request)),
     );
   }
 });
