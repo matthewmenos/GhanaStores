@@ -32,7 +32,7 @@ npm install            # install all dependencies
 cp .env.example .env   # then edit values (see below)
 # Fresh database (destructive):
 RESET_DATABASE=yes npm run db:reset
-npm run db:init        # apply the single canonical db/schema.sql
+npm run db:init        # optional: applies db/schema.sql (the app also self-applies)
 npm run db:migrate     # add/seed the 100 theme templates
 npm run db:seed        # optional demo store + catalog + orders
 node server.js         # API on http://localhost:4000
@@ -87,7 +87,8 @@ services/
   pdfService.js               PDFKit receipt with QR code
 jobs/billingCron.js           Day 11 reminder / Day 14 PAST_DUE / Day 17 suspend
 db/schema.sql                Single canonical schema, tables, indexes, trigger
-scripts/dbInit.js             Fresh schema applier (npm run db:init)
+db/applySchema.js            Automatic, idempotent schema applier (runs on first query)
+scripts/dbInit.js             Manual schema applier (npm run db:init)
 scripts/dbReset.js            Guarded destructive reset (npm run db:reset)
 scripts/dbSeed.js             Demo data (npm run db:seed)
 scripts/e2eTest.js            Full 37-assertion end-to-end suite

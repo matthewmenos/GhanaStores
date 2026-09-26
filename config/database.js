@@ -5,6 +5,7 @@
  */
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { applySchemaIfMissing } from '../db/applySchema.js';
 
 dotenv.config();
 
@@ -49,8 +50,50 @@ pool.on('error', (err) => {
   console.error('[db] idle client error:', err.message);
 });
 
+/**
+ * Ensures the schema exists exactly once per process, then never again.
+ *
+ * This is what makes a fresh deployment self-healing: the first query on a cold
+ * serverless instance applies db/schema.sql, so `npm run db:init` is no longer a
+ * required manual step. The promise is memoised, so warm instances do no work.
+ * Failure is recorded and rethrown so the caller still sees the real error.
+ */
+let schemaPromise = null;
+let schemaState = 'unchecked';
+
+export async function ensureSchema() {
+  if (!connectionString) return { applied: false, reason: 'no-database-url' };
+  if (schemaPromise) return schemaPromise;
+
+  schemaPromise = (async () => {
+    try {
+      const result = await applySchemaIfMissing(
+        (sql) => pool.query(sql),
+        { quiet: true },
+      );
+      schemaState = result.applied ? 'applied' : 'current';
+      if (result.applied) {
+        console.log(`[db] schema applied automatically (${result.statements} statements).`);
+      }
+      return result;
+    } catch (err) {
+      schemaState = 'failed';
+      schemaPromise = null; // allow a later request to retry
+      console.error('[db] automatic schema application failed:', err.message);
+      throw err;
+    }
+  })();
+
+  return schemaPromise;
+}
+
+export function getSchemaState() {
+  return schemaState;
+}
+
 /** Parameterized single query. Never interpolate user input into `text`. */
 export async function query(text, params = []) {
+  await ensureSchema();
   return pool.query(text, params);
 }
 
@@ -60,6 +103,7 @@ export async function query(text, params = []) {
  * rolls back on throw, always releases the client.
  */
 export async function withTransaction(fn) {
+  await ensureSchema();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -101,5 +145,7 @@ export async function assertSchema() {
   const { rows } = await pool.query('SELECT 1 FROM stores LIMIT 1');
   return rows.length >= 0;
 }
-
-export default { pool, query, withTransaction, pingDb, assertSchema, isMissingSchemaError };
+export default {
+  pool, query, withTransaction, pingDb, assertSchema,
+  isMissingSchemaError, ensureSchema, getSchemaState,
+};

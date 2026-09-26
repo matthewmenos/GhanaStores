@@ -25,7 +25,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-import { pingDb, assertSchema, isMissingSchemaError } from './config/database.js';
+import { pingDb, ensureSchema, getSchemaState, isMissingSchemaError } from './config/database.js';
 import { resolveTenantStore } from './middleware/domainMiddleware.js';
 import billingRoutes from './routes/billingRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
@@ -89,10 +89,13 @@ app.use(resolveTenantStore);
 app.get('/health', async (_req, res) => {
   try {
     const now = await pingDb();
-    // A reachable database with no tables means DATABASE_URL is set but the
-    // schema was never applied - a distinct failure that deserves its own report.
+    // Apply the schema on demand. This is what makes a fresh database usable
+    // without a manual `npm run db:init` step: the first request self-heals.
+    // ensureSchema() is idempotent and a no-op once the checksum matches.
+    let applied = false;
     try {
-      await assertSchema();
+      const result = await ensureSchema();
+      applied = Boolean(result?.applied);
     } catch (schemaErr) {
       if (isMissingSchemaError(schemaErr)) {
         return res.status(503).json({
@@ -100,18 +103,25 @@ app.get('/health', async (_req, res) => {
           service: 'didwa-api',
           db: 'connected',
           schema: 'missing',
-          hint: 'The database is reachable but empty. Run `npm run db:init` against this DATABASE_URL to apply db/schema.sql.',
+          hint: 'The database is reachable but the schema could not be applied. Check Vercel logs for the DDL error.',
         });
       }
       throw schemaErr;
     }
-    res.json({ ok: true, service: 'didwa-api', db: 'connected', schema: 'applied', at: now.now });
+    res.json({
+      ok: true,
+      service: 'didwa-api',
+      db: 'connected',
+      schema: getSchemaState() === 'failed' ? 'unknown' : 'applied',
+      appliedNow: applied,
+      at: now.now,
+    });
   } catch {
     res.status(503).json({
       ok: false,
       service: 'didwa-api',
       db: 'unreachable',
-      hint: 'Set DATABASE_URL in Vercel (Neon pooled connection string), then apply db/schema.sql with `npm run db:init`.',
+      hint: 'Set DATABASE_URL in Vercel (use the Neon pooled connection string) and redeploy.',
     });
   }
 });
