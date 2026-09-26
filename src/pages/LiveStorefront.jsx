@@ -11,7 +11,7 @@ const slugFromHost = () => {
   return host;
 };
 
-export default function LiveStorefront() {
+export default function LiveStorefront({ onPlatformHost = null }) {
   const [tenant, setTenant] = useState(null);
   const [products, setProducts] = useState([]);
   const [theme, setTheme] = useState(null);
@@ -29,7 +29,14 @@ export default function LiveStorefront() {
       api.get(`/api/store/theme/public/${encodeURIComponent(slug)}`),
     ]).then(([resolved, catalog, themed]) => {
       if (!live) return;
-      if (!resolved?.tenant) throw new Error('Storefront not found.');
+      // The server is authoritative about tenancy. If it reports this host as
+      // a system root (apex/www/app/api), hand control back to the app instead
+      // of rendering "storefront not found". This makes a wrong or missing
+      // VITE_PLATFORM_DOMAIN harmless rather than a blank storefront.
+      if (!resolved?.tenant) {
+        if (resolved?.isPlatformRoot && onPlatformHost) { onPlatformHost(); return; }
+        throw new Error('Storefront not found.');
+      }
       setTenant(resolved.tenant);
       setProducts(catalog.products || []);
       if (themed?.theme?.config) setTheme(normalizeCustomThemeConfig(themed.theme.config));

@@ -40,6 +40,9 @@ export default function App() {
   const [billing, setBilling] = useState(null);
   /* Preselected tab when the welcome page opens the auth screen. */
   const [authMode, setAuthMode] = useState('register');
+  /* Set when the server reports the current host is a system root, which
+     overrides the client-side host guess and renders the marketing site. */
+  const [hostIsPlatform, setHostIsPlatform] = useState(false);
   const route = usePathname();
   const host = window.location.hostname.toLowerCase();
   const platform = String(import.meta.env.VITE_PLATFORM_DOMAIN || '').replace(/^https?:\/\//, '').split('/')[0];
@@ -119,8 +122,13 @@ export default function App() {
   /* Public web pages - open to everyone, no dashboard chrome. The index
      (#/) plus About / Contact / Terms / Privacy stay reachable whether or
      not a seller is signed in. */
-  /* Tenant storefront hosts are public and never require seller auth. */
-  if (isTenantHost) return <LiveStorefront />;
+  /* Tenant storefront hosts are public and never require seller auth.
+     The server has the final say: if it reports this host as a system root
+     (apex/www/app/api), the storefront calls back and we render the marketing
+     site instead. That keeps a stale or wrong VITE_PLATFORM_DOMAIN harmless. */
+  if (isTenantHost && !hostIsPlatform) {
+    return <LiveStorefront onPlatformHost={() => setHostIsPlatform(true)} />;
+  }
 
   const welcomeProps = {
     authed,
