@@ -22,7 +22,13 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()),
+      // Force every open tab onto this version. Without this a tab can keep
+      // running the previous bundle indefinitely, which looks exactly like
+      // "my deploy did not take effect".
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then((clients) => clients.forEach((client) => client.navigate(client.url)))
+      .catch(() => { /* navigation is best-effort */ }),
   );
 });
 
