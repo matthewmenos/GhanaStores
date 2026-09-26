@@ -22,25 +22,41 @@ export default function LiveStorefront({ onPlatformHost = null }) {
 
   useEffect(() => {
     let live = true;
-    const slug = slugFromHost();
-    Promise.all([
-      api.get('/api/domains/resolve'),
-      api.get(`/api/domains/storefront/${encodeURIComponent(slug)}/products`),
-      api.get(`/api/store/theme/public/${encodeURIComponent(slug)}`),
-    ]).then(([resolved, catalog, themed]) => {
-      if (!live) return;
-      // The server is authoritative about tenancy. If it reports this host as
-      // a system root (apex/www/app/api), hand control back to the app instead
-      // of rendering "storefront not found". This makes a wrong or missing
-      // VITE_PLATFORM_DOMAIN harmless rather than a blank storefront.
-      if (!resolved?.tenant) {
-        if (resolved?.isPlatformRoot && onPlatformHost) { onPlatformHost(); return; }
-        throw new Error('Storefront not found.');
+    // The server is authoritative about tenancy, so resolve the host FIRST and
+    // only request catalogue/theme data once a tenant is confirmed. Firing all
+    // three calls together let a rejected storefront-catalog request short
+    // circuit Promise.all, so the isPlatformRoot branch never ran and a system
+    // root rendered "Storefront not found" instead of the platform site.
+    const fail = (text) => { if (live) setMessage(text); };
+    (async () => {
+      let resolved;
+      try {
+        resolved = await api.get('/api/domains/resolve');
+      } catch {
+        fail('Could not reach the store. Please try again.');
+        return;
       }
+      if (!live) return;
+      // Apex / www / app / api (anything the server calls a system root) is
+      // platform traffic. Hand control back so the marketing site renders; this
+      // also makes a stale or missing VITE_PLATFORM_DOMAIN harmless.
+      if (!resolved?.tenant) {
+        if (resolved?.isPlatformRoot) { if (onPlatformHost) onPlatformHost(); return; }
+        fail('Storefront not found.');
+        return;
+      }
+      const slug = resolved.tenant.subdomainSlug || slugFromHost();
       setTenant(resolved.tenant);
-      setProducts(catalog.products || []);
+      // A missing catalogue or theme must not blank a real store: degrade to an
+      // empty catalogue and the default theme instead of an error screen.
+      const [catalog, themed] = await Promise.all([
+        api.get(`/api/domains/storefront/${encodeURIComponent(slug)}/products`).catch(() => null),
+        api.get(`/api/store/theme/public/${encodeURIComponent(slug)}`).catch(() => null),
+      ]);
+      if (!live) return;
+      setProducts(catalog?.products || []);
       if (themed?.theme?.config) setTheme(normalizeCustomThemeConfig(themed.theme.config));
-    }).catch((error) => { if (live) setMessage(error.message); });
+    })();
     return () => { live = false; };
   }, []);
 
