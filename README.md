@@ -8,7 +8,7 @@ a storefront on a subdomain or custom domain, manage multi-variant inventory,
 sell in-store or online, accept Mobile Money and cash, and cash out instantly
 via MTN, Telecel/Vodafone or AT Money.
 
-- `db/fresh.sql` is the single canonical fresh-install schema and the only SQL file in the repository.
+- `db/schema.sql` is the single canonical schema and the only SQL file in the repository.
 - `npm run db:reset` is destructive and refuses to run unless `RESET_DATABASE=yes` is set.
 - Apply the schema to a new Neon database, then run `npm run db:migrate` to seed the 100 theme templates.
 
@@ -32,7 +32,7 @@ npm install            # install all dependencies
 cp .env.example .env   # then edit values (see below)
 # Fresh database (destructive):
 RESET_DATABASE=yes npm run db:reset
-npm run db:init        # apply the single canonical db/fresh.sql
+npm run db:init        # apply the single canonical db/schema.sql
 npm run db:migrate     # add/seed the 100 theme templates
 npm run db:seed        # optional demo store + catalog + orders
 node server.js         # API on http://localhost:4000
@@ -86,7 +86,7 @@ services/
   smsService.js               Arkesel templates (welcome, trial, payout, stock)
   pdfService.js               PDFKit receipt with QR code
 jobs/billingCron.js           Day 11 reminder / Day 14 PAST_DUE / Day 17 suspend
-db/fresh.sql                 Single canonical schema, tables, indexes, trigger
+db/schema.sql                Single canonical schema, tables, indexes, trigger
 scripts/dbInit.js             Fresh schema applier (npm run db:init)
 scripts/dbReset.js            Guarded destructive reset (npm run db:reset)
 scripts/dbSeed.js             Demo data (npm run db:seed)

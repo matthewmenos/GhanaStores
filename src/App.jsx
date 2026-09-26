@@ -45,10 +45,19 @@ export default function App() {
   const platform = String(import.meta.env.VITE_PLATFORM_DOMAIN || '').replace(/^https?:\/\//, '').split('/')[0];
   const platformHost = platform.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase();
   const isPlatformHost = !platformHost || host === platformHost || host === `www.${platformHost}` || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.vercel.app');
-  const isTenantHost = !isPlatformHost && Boolean(
-    platformHost && (host.endsWith(`.${platformHost}`) || host.includes('.')),
-  );
-
+  // A host is tenanted only when it is a real subdomain of the platform apex.
+  // Never treat "any host containing a dot" as a tenant: that misclassifies www
+  // and other platform hosts, and the storefront then requests a bogus slug.
+  const isPlatformSubdomain = Boolean(platformHost)
+    && host.endsWith(`.${platformHost}`)
+    && host !== `www.${platformHost}`
+    && host !== `api.${platformHost}`;
+  // A seller custom domain is not derivable from the client, so any other
+  // non-platform host is offered to the storefront, which resolves it through
+  // the API and renders a clean error when no store claims it.
+  const isPlatformHostWithSubdomains = isPlatformHost || host === `api.${platformHost}`;
+  const isTenantHost = isPlatformSubdomain
+    || (!isPlatformHostWithSubdomains && host.includes('.') && host.split('.').length >= 2);
   /* Refresh trial status whenever the dashboard mounts or route changes. */
   useEffect(() => {
     if (!authed) return;

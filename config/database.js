@@ -9,6 +9,23 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const connectionString = process.env.DATABASE_URL || '';
+const ON_VERCEL = Boolean(process.env.VERCEL);
+
+// A serverless function with no DATABASE_URL must fail loudly. Silently falling
+// back to localhost:5432 produced `connect ECONNREFUSED 127.0.0.1:5432` and an
+// opaque 500 on every route instead of an actionable configuration error.
+if (!connectionString && ON_VERCEL) {
+  throw new Error(
+    'DATABASE_URL is not set. Add it in Vercel -> Project Settings -> Environment '
+    + 'Variables (use the Neon pooled connection string) and redeploy.',
+  );
+}
+if (!connectionString) {
+  console.warn(
+    '[db] DATABASE_URL is not set - falling back to a local PostgreSQL at '
+    + 'localhost:5432. Every API request will fail until it is configured.',
+  );
+}
 
 // Neon requires TLS. Detect a Neon endpoint, or allow explicit override.
 const isNeon = /\.neon\.tech/i.test(connectionString);

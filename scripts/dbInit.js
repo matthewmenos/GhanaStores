@@ -1,5 +1,5 @@
 /**
- * Apply the single canonical db/fresh.sql schema to the configured database
+ * Apply the single canonical db/schema.sql schema to the configured database
  * (Neon or local Postgres).
  * Usage: npm run db:init
  */
@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Single canonical schema for fresh deployments. No supplemental SQL files are
 // executed during initialization.
 const schemaFiles = [
-  path.join(__dirname, '..', 'db', 'fresh.sql'),
+  path.join(__dirname, '..', 'db', 'schema.sql'),
 ];
 
 const connectionString = process.env.DATABASE_URL || '';

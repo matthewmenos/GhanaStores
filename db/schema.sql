@@ -1,7 +1,7 @@
 -- ============================================================
 -- DIDWA - Neon PostgreSQL Schema
 -- Row-Level Multi-Tenancy: every tenant table carries store_id.
--- Apply with: npm run db:init   (or psql -f db/fresh.sql)
+-- Apply with: npm run db:init   (or psql -f db/schema.sql)
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
