@@ -66,11 +66,12 @@ export async function ensureSchema() {
   if (schemaPromise) return schemaPromise;
 
   schemaPromise = (async () => {
+    // A dedicated client is required: the advisory lock is transaction-scoped
+    // and must be acquired and released on the SAME connection. Using
+    // pool.query() per statement would spread them across connections.
+    const client = await pool.connect();
     try {
-      const result = await applySchemaIfMissing(
-        (sql) => pool.query(sql),
-        { quiet: true },
-      );
+      const result = await applySchemaIfMissing(client, { quiet: true });
       schemaState = result.applied ? 'applied' : 'current';
       if (result.applied) {
         console.log(`[db] schema applied automatically (${result.statements} statements).`);
@@ -81,6 +82,8 @@ export async function ensureSchema() {
       schemaPromise = null; // allow a later request to retry
       console.error('[db] automatic schema application failed:', err.message);
       throw err;
+    } finally {
+      client.release();
     }
   })();
 

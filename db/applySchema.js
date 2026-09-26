@@ -28,6 +28,12 @@ export const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 const LOCK_KEY = 8_147_231;
 
 /**
+ * Fail fast if another instance is mid-apply, instead of blocking the request
+ * until the platform's execution limit (300s on Vercel).
+ */
+const LOCK_TIMEOUT_MS = 15_000;
+
+/**
  * Split a SQL file into individual statements.
  *
  * A naive split on ';' corrupts the schema because the trial-period trigger is
@@ -130,15 +136,23 @@ function checksum(text) {
 
 /**
  * Applies db/schema.sql when the stored checksum differs from the file.
- * @param {(sql: string) => Promise<unknown>} exec
+ *
+ * IMPORTANT: this must run on ONE dedicated pool client, not `pool.query()`.
+ * `pg_advisory_lock()` is session-scoped, so acquiring it on one pooled
+ * connection and releasing it on another leaks the lock permanently. Once
+ * every pooled client holds a lock, all later requests block until the
+ * function times out. The transaction-scoped `pg_advisory_xact_lock()` below
+ * is released automatically on COMMIT/ROLLBACK, so it cannot leak.
+ *
+ * @param {{ query: (sql: string) => Promise<any> }} client - a dedicated pg client
  * @param {{ quiet?: boolean }} [options]
- * @returns {Promise<{ applied: boolean, statements: number, checksum: string, reason?: string }>}
  */
-export async function applySchemaIfMissing(exec, { quiet = true } = {}) {
+export async function applySchemaIfMissing(client, { quiet = true } = {}) {
+  const exec = (sql) => client.query(sql);
   const sql = fs.readFileSync(SCHEMA_PATH, 'utf8');
   const sum = checksum(sql);
 
-  // Track applied state outside the schema so the marker table survives schema edits.
+  // Marker table lives outside schema.sql so it survives future schema edits.
   await exec(`
     CREATE TABLE IF NOT EXISTS schema_state (
       id         INTEGER PRIMARY KEY DEFAULT 1,
@@ -147,8 +161,14 @@ export async function applySchemaIfMissing(exec, { quiet = true } = {}) {
     )
   `);
 
-  await exec('SELECT pg_advisory_lock(' + LOCK_KEY + ')');
+  await exec('BEGIN');
   try {
+    // Transaction-scoped lock: auto-released on commit/rollback, never leaks.
+    // A short lock_timeout means a stuck holder fails fast instead of hanging
+    // the request for the platform's full execution limit.
+    await exec(`SET LOCAL lock_timeout = ${LOCK_TIMEOUT_MS}`);
+    await exec('SELECT pg_advisory_xact_lock(' + LOCK_KEY + ')');
+
     let existing = null;
     try {
       const res = await exec('SELECT checksum FROM schema_state WHERE id = 1');
@@ -158,32 +178,28 @@ export async function applySchemaIfMissing(exec, { quiet = true } = {}) {
     }
 
     if (existing === sum) {
+      await exec('COMMIT');
       return { applied: false, statements: 0, checksum: sum, reason: 'already-current' };
     }
 
     const statements = splitSql(sql);
-    await exec('BEGIN');
-    try {
-      for (const statement of statements) {
-        await exec(statement);
-      }
-      await exec(
-        'INSERT INTO schema_state (id, checksum, applied_at) VALUES (1, '
-        + quoteLiteral(sum) + ', NOW()) ON CONFLICT (id) DO UPDATE SET '
-        + 'checksum = EXCLUDED.checksum, applied_at = EXCLUDED.applied_at',
-      );
-      await exec('COMMIT');
-    } catch (err) {
-      try { await exec('ROLLBACK'); } catch { /* noop */ }
-      throw err;
+    for (const statement of statements) {
+      await exec(statement);
     }
+    await exec(
+      'INSERT INTO schema_state (id, checksum, applied_at) VALUES (1, '
+      + quoteLiteral(sum) + ', NOW()) ON CONFLICT (id) DO UPDATE SET '
+      + 'checksum = EXCLUDED.checksum, applied_at = EXCLUDED.applied_at',
+    );
+    await exec('COMMIT');
 
     if (!quiet) {
       console.log(`[db] schema applied automatically (${statements.length} statements).`);
     }
     return { applied: true, statements: statements.length, checksum: sum };
-  } finally {
-    await exec('SELECT pg_advisory_unlock(' + LOCK_KEY + ')');
+  } catch (err) {
+    try { await exec('ROLLBACK'); } catch { /* noop */ }
+    throw err;
   }
 }
 
