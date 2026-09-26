@@ -11,7 +11,7 @@ const slugFromHost = () => {
   return host;
 };
 
-export default function LiveStorefront({ onPlatformHost = null }) {
+export default function LiveStorefront({ onPlatformHost = null, resolvedHost = null }) {
   const [tenant, setTenant] = useState(null);
   const [products, setProducts] = useState([]);
   const [theme, setTheme] = useState(null);
@@ -29,12 +29,20 @@ export default function LiveStorefront({ onPlatformHost = null }) {
     // root rendered "Storefront not found" instead of the platform site.
     const fail = (text) => { if (live) setMessage(text); };
     (async () => {
-      let resolved;
-      try {
-        resolved = await api.get('/api/domains/resolve');
-      } catch {
-        fail('Could not reach the store. Please try again.');
-        return;
+      // App resolves the host before mounting this screen, so reuse its answer
+      // instead of querying twice. A transient failure is retried here.
+      const answered = Boolean(resolvedHost)
+        && (resolvedHost.status === 'tenant' || resolvedHost.status === 'unresolved');
+      let resolved = answered
+        ? { tenant: resolvedHost.tenant, isPlatformRoot: resolvedHost.isPlatformRoot }
+        : null;
+      if (!resolved) {
+        try {
+          resolved = await api.get('/api/domains/resolve');
+        } catch {
+          fail('Could not reach the store. Please try again.');
+          return;
+        }
       }
       if (!live) return;
       // Apex / www / app / api (anything the server calls a system root) is

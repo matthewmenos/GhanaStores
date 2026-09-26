@@ -44,6 +44,11 @@ export default function App() {
      overrides the client-side host guess and renders the marketing site. */
   const [hostIsPlatform, setHostIsPlatform] = useState(false);
   const route = usePathname();
+
+  /* Server-authoritative Host classification. The env var behind the
+     client-side guess is baked in at build time and can be stale, so the API
+     owns the final word: platform root -> marketing site, tenant -> storefront. */
+  const [hostState, setHostState] = useState({ status: 'pending', tenant: null, isPlatformRoot: false });
   const host = window.location.hostname.toLowerCase();
   const platform = String(import.meta.env.VITE_PLATFORM_DOMAIN || '').replace(/^https?:\/\//, '').split('/')[0];
   const platformHost = platform.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase();
@@ -61,6 +66,28 @@ export default function App() {
   const isPlatformHostWithSubdomains = isPlatformHost || host === `api.${platformHost}`;
   const isTenantHost = isPlatformSubdomain
     || (!isPlatformHostWithSubdomains && host.includes('.') && host.split('.').length >= 2);
+
+  /* The API classifies the Host header. This is the authoritative answer: the
+     client-side guess above depends on a build-time env var that can be stale,
+     which is how the apex domain ended up mounting a storefront. */
+  useEffect(() => {
+    let alive = true;
+    api.get('/api/domains/resolve')
+      .then((resolved) => {
+        if (!alive) return;
+        setHostState({
+          status: resolved?.tenant ? 'tenant' : (resolved?.isPlatformRoot ? 'platform' : 'unresolved'),
+          tenant: resolved?.tenant || null,
+          isPlatformRoot: Boolean(resolved?.isPlatformRoot),
+        });
+      })
+      .catch(() => { if (alive) setHostState({ status: 'error', tenant: null, isPlatformRoot: false }); });
+    return () => { alive = false; };
+  }, []);
+
+  /* Derived from the server answer so the apex can never be treated as a
+     tenant, whatever the baked-in VITE_PLATFORM_DOMAIN says. */
+  const serverSaysPlatform = hostState.status === 'platform';
   /* Refresh trial status whenever the dashboard mounts or route changes. */
   useEffect(() => {
     if (!authed) return;
@@ -122,12 +149,18 @@ export default function App() {
   /* Public web pages - open to everyone, no dashboard chrome. The index
      (#/) plus About / Contact / Terms / Privacy stay reachable whether or
      not a seller is signed in. */
-  /* Tenant storefront hosts are public and never require seller auth.
-     The server has the final say: if it reports this host as a system root
-     (apex/www/app/api), the storefront calls back and we render the marketing
-     site instead. That keeps a stale or wrong VITE_PLATFORM_DOMAIN harmless. */
-  if (isTenantHost && !hostIsPlatform) {
-    return <LiveStorefront onPlatformHost={() => setHostIsPlatform(true)} />;
+  /* Tenant storefront hosts are public and never require seller auth. The
+     server has the final word: it is asked what this host is before anything
+     storefront-shaped renders, so the apex/www/app/api hosts always reach the
+     marketing site instead of firing a bogus /storefront/<host>/products call.
+     A stale or wrong VITE_PLATFORM_DOMAIN is therefore harmless. */
+  if (isTenantHost && !hostIsPlatform && !serverSaysPlatform) {
+    /* Wait for the server before mounting the storefront: without this the
+       apex renders a storefront for a moment and requests itself as a slug. */
+    if (hostState.status === 'pending') {
+      return <div className="flex min-h-screen items-center justify-center text-slate-500">Loading store...</div>;
+    }
+    return <LiveStorefront resolvedHost={hostState} onPlatformHost={() => setHostIsPlatform(true)} />;
   }
 
   const welcomeProps = {
