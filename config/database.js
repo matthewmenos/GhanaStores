@@ -84,4 +84,22 @@ export async function pingDb() {
   return rows[0];
 }
 
-export default { pool, query, withTransaction, pingDb };
+/** Postgres SQLSTATE for "relation does not exist" (undefined table). */
+export const UNDEFINED_TABLE = '42P01';
+
+/** True when a Postgres error means the schema has not been applied yet. */
+export function isMissingSchemaError(err) {
+  return err && (err.code === UNDEFINED_TABLE || /does not exist/i.test(err.message || ''));
+}
+
+/**
+ * Confirms the schema is present by touching the tenants table. A reachable
+ * database with no tables is a distinct (and very common) misconfiguration:
+ * DATABASE_URL is set but `npm run db:init` was never run against it.
+ */
+export async function assertSchema() {
+  const { rows } = await pool.query('SELECT 1 FROM stores LIMIT 1');
+  return rows.length >= 0;
+}
+
+export default { pool, query, withTransaction, pingDb, assertSchema, isMissingSchemaError };

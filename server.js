@@ -25,7 +25,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-import { pingDb } from './config/database.js';
+import { pingDb, assertSchema, isMissingSchemaError } from './config/database.js';
 import { resolveTenantStore } from './middleware/domainMiddleware.js';
 import billingRoutes from './routes/billingRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
@@ -89,13 +89,29 @@ app.use(resolveTenantStore);
 app.get('/health', async (_req, res) => {
   try {
     const now = await pingDb();
-    res.json({ ok: true, service: 'didwa-api', db: 'connected', at: now.now });
+    // A reachable database with no tables means DATABASE_URL is set but the
+    // schema was never applied - a distinct failure that deserves its own report.
+    try {
+      await assertSchema();
+    } catch (schemaErr) {
+      if (isMissingSchemaError(schemaErr)) {
+        return res.status(503).json({
+          ok: false,
+          service: 'didwa-api',
+          db: 'connected',
+          schema: 'missing',
+          hint: 'The database is reachable but empty. Run `npm run db:init` against this DATABASE_URL to apply db/schema.sql.',
+        });
+      }
+      throw schemaErr;
+    }
+    res.json({ ok: true, service: 'didwa-api', db: 'connected', schema: 'applied', at: now.now });
   } catch {
     res.status(503).json({
       ok: false,
       service: 'didwa-api',
       db: 'unreachable',
-      hint: 'Set DATABASE_URL and apply db/schema.sql (npm run db:init).',
+      hint: 'Set DATABASE_URL in Vercel (Neon pooled connection string), then apply db/schema.sql with `npm run db:init`.',
     });
   }
 });
@@ -132,6 +148,18 @@ if (process.env.NODE_ENV === 'production' && !ON_VERCEL) {
 /* --------------------------------- Errors ------------------------------------ */
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
+  // A missing schema is a deployment misconfiguration, not a server fault.
+  // Surface it as 503 with the fix, instead of a 500 quoting raw Postgres text.
+  if (isMissingSchemaError(err)) {
+    console.error('[server] schema missing:', err.message);
+    if (!res.headersSent) {
+      res.status(503).json({
+        error: 'Database schema is not applied. Run `npm run db:init` against this DATABASE_URL.',
+        schema: 'missing',
+      });
+    }
+    return;
+  }
   console.error('[server] unhandled error:', err.message);
   if (res.headersSent) return;
   res.status(err.status || 500).json({ error: err.message || 'Internal server error.' });
