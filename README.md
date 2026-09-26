@@ -58,7 +58,7 @@ Demo login after seeding: `demo@didwa.com` / `didwa1`
 | `PLATFORM_DOMAIN` | Platform apex domain for subdomains | `didwaghana.com` |
 | `PLATFORM_URL` | Public origin for PDF/QR verification links | `https://didwaghana.com` |
 | `ROOT_DOMAIN` | Apex used by the Host resolver (dev: `localhost:5173`) | `didwaghana.com` |
-| `CNAME_TARGET` | CNAME target shown to sellers | `cname.vercel-dns.com` on Vercel; else `cname.<PLATFORM_DOMAIN>` |
+| `CNAME_TARGET` | CNAME target shown to sellers | Vercel project CNAME, e.g. `01c53a14e266ef4f.vercel-dns-017.com`; else `cname.<PLATFORM_DOMAIN>` |
 | `VITE_PLATFORM_DOMAIN` | Browser-side apex domain for subdomains (seller PWA) | `VITE_`-prefixed mirror of `PLATFORM_DOMAIN` (`didwaghana.com`) |
 | `ENABLE_CRON` | Start the billing scheduler | `false` |
 | `CLIENT_URL` | CORS origin for the PWA | `*` |
@@ -197,7 +197,7 @@ and the output directory (`dist`). No code changes required.
 | `VITE_PLATFORM_DOMAIN` | Same value - baked into the browser bundle at build time, so redeploy after changing it |
 | `PLATFORM_URL` | `https://didwaghana.com` (used for PDF verification links) |
 | `ROOT_DOMAIN` | `didwaghana.com` (apex used by the Host-header resolver) |
-| `CNAME_TARGET` | `cname.vercel-dns.com` (what sellers CNAME their own domain to) |
+| `CNAME_TARGET` | The project-specific CNAME from your Vercel domain card (what sellers point their own domain at) |
 
 ### 3. Cron job & auth
 
@@ -209,15 +209,27 @@ cycle: day-11 renewal reminders, day-14 `PAST_DUE`, and day-17 suspension.
 
 ### 4. Domain, DNS and customer domains (didwaghana.com on Cloudflare + Vercel)
 
-Add both the apex and the wildcard to the Vercel project (Project -> Settings ->
-Domains): `didwaghana.com` and `*.didwaghana.com`. Then create the DNS records
-in the Cloudflare zone:
+Add the apex, `www` and the wildcard to the Vercel project (Project -> Settings ->
+Domains): `didwaghana.com`, `www.didwaghana.com` and `*.didwaghana.com`. The
+wildcard entry is what makes every seller subdomain resolve, so do not skip it.
+
+Vercel issues a **project-specific CNAME** (for example
+`01c53a14e266ef4f.vercel-dns-017.com`) rather than the legacy
+`cname.vercel-dns.com`, and marks it as "DNS Change Recommended" until you
+create the record. Copy the exact value from the Vercel domain card - it is
+unique per project. Then create these records in the Cloudflare zone, all pointed
+at the value Vercel gave you:
 
 | Type | Name | Content | Proxy | Why |
 | --- | --- | --- | --- | --- |
-| A | `@` (didwaghana.com) | `76.76.21.21` (use the value on the Vercel domain card) | DNS only for the simplest setup | Apex cannot be a CNAME |
-| CNAME | `www` | `cname.vercel-dns.com` | DNS only | Vercel provisions the certificate |
-| CNAME | `*` | `cname.vercel-dns.com` | **Proxied (orange cloud)** | Storefront subdomains (`slug.didwaghana.com`) |
+| CNAME | `@` | `01c53a14e266ef4f.vercel-dns-017.com` (your value) | Proxied | Cloudflare flattens the apex, so no A record is needed |
+| CNAME | `www` | same value | Proxied | Vercel provisions the certificate |
+| CNAME | `*` | same value | **Proxied (orange cloud)** | Storefront subdomains (`slug.didwaghana.com`) |
+
+Using a CNAME at the apex is only possible because Cloudflare performs CNAME
+flattening. It also means you never have to maintain Vercel's apex IPs
+(`76.76.21.x`), which change without notice. If you would rather not rely on
+flattening, Vercel's domain card will also show the A-record values it accepts.
 
 Two ways to get SSL on the wildcard, and they are mutually exclusive:
 
@@ -234,17 +246,18 @@ Two ways to get SSL on the wildcard, and they are mutually exclusive:
 
 Notes:
 
-- `CNAME_TARGET=cname.vercel-dns.com` so the DNS instructions sellers see in
-  `/api/domains/my` point at Vercel. The app default is
-  `cname.<PLATFORM_DOMAIN>`, which only resolves if you create that record.
+- Set `CNAME_TARGET` to the same project-specific value Vercel shows, so the DNS
+  instructions sellers see in `/api/domains/my` point at your project. The
+  verification endpoint recognises the project-scoped targets, the legacy
+  `cname.vercel-dns.com`, Vercel's apex IPs, and Cloudflare-proxied records, so
+  verification keeps working whichever of those Vercel hands you.
 - The tenant resolver (`middleware/domainMiddleware.js`) maps the `Host` header
   to `stores.custom_domain` or `stores.subdomain_slug`, so storefronts work the
   same behind Cloudflare or Vercel - both preserve the `Host` header.
-- Sellers bringing their own domain get a CNAME to `cname.vercel-dns.com`, and
-  `POST /api/domains/verify` accepts Vercel's canonical target and apex IPs.
 - The Cloudflare-for-SaaS flow in `services/domainService.js`
-  (`CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_API_TOKEN`) now targets the real
+  (`CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_API_TOKEN`) targets the real
   `didwaghana.com` zone, so keep the zone on Cloudflare if you want that
+  automated custom-hostname provisioning.
   automated custom-hostname provisioning.
 
 ### 5. Serverless caveats (already handled)

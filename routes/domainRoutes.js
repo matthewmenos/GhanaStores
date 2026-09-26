@@ -25,8 +25,21 @@ const ROOT_DOMAIN = (process.env.ROOT_DOMAIN || 'localhost:5173').split(':')[0];
 // Falls back to a subdomain OF THE PLATFORM DOMAIN so white-label deploys
 // only need to set PLATFORM_DOMAIN (override with an explicit CNAME_TARGET).
 const CNAME_TARGET = process.env.CNAME_TARGET || `cname.${PLATFORM_DOMAIN}`;
-// Vercel's canonical custom-domain DNS targets.
+// Vercel's DNS targets. Vercel now issues a project-specific CNAME such as
+// `01c53a14e266ef4f.vercel-dns-017.com`; `cname.vercel-dns.com` is the legacy
+// target and still works. Every shape must be recognised, otherwise custom-domain
+// verification rejects domains that Vercel has told the seller to point here.
 const VERCEL_CNAME = 'cname.vercel-dns.com';
+/** True when a resolved CNAME target belongs to Vercel's DNS estate. */
+function isVercelCnameTarget(host) {
+  const h = String(host || '').toLowerCase().replace(/\.$/, '');
+  if (!h) return false;
+  if (h === VERCEL_CNAME || h.endsWith(`.${VERCEL_CNAME}`)) return true;
+  // Project-scoped targets: <hash>.vercel-dns-NNN[.cname.vercel-dns.com]
+  if (/^(?:[a-z0-9-]+\.)*vercel-dns-\d{2,4}\.(com|net)$/.test(h)) return true;
+  if (h.endsWith('.vercel-dns.com')) return true;
+  return false;
+}
 const VERCEL_APEX_IPS = new Set(['76.76.21.21', '76.76.21.22', '76.76.21.61', '76.76.21.98', '76.76.21.241', '76.76.21.242']);
 // Cloudflare returns its anycast edge addresses when a record is orange-clouded,
 // so a proxied record cannot be matched to a real target by IP alone.
@@ -199,17 +212,19 @@ router.post('/verify', requireSeller, async (req, res, next) => {
     let aRecords = [];
     try { aRecords = await dns.resolve4(domain); } catch { /* none */ }
 
-    // A Vercel target can appear as the canonical CNAME, as a Cloudflare-flattened
-    // CNAME (which resolves straight to Vercel's apex A records), or as an ALIAS.
+    // A Vercel target can appear as the project-scoped CNAME Vercel now issues,
+    // as the legacy cname.vercel-dns.com, as a Cloudflare-flattened CNAME (which
+    // resolves straight to Vercel's apex A records), or as an ALIAS.
     const cnameOk = cnameRecords.some((r) =>
-      r === VERCEL_CNAME || r === CNAME_TARGET || r.endsWith(`.${VERCEL_CNAME}`));
+      isVercelCnameTarget(r) || String(r).toLowerCase() === String(CNAME_TARGET).toLowerCase());
     const apexOk = aRecords.some((ip) => VERCEL_APEX_IPS.has(ip));
     // Orange-clouded records resolve to Cloudflare anycast IPs, which hides the
     // real target, so accept that shape only when the platform target is Vercel.
     const cloudflareProxied = aRecords.some((ip) =>
       CNAME_PROXY_IP_RANGES.some((range) => ip.startsWith(range)));
+    const platformIsVercel = isVercelCnameTarget(CNAME_TARGET);
     const pointsAtPlatform = cnameOk || apexOk
-      || (cloudflareProxied && CNAME_TARGET === VERCEL_CNAME);
+      || (cloudflareProxied && platformIsVercel);
 
     const records = {
       cname: cnameRecords,
